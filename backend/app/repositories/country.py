@@ -10,9 +10,7 @@ class CountryRepository:
 
     def get_all(self) -> list[Country]:
         statement = (
-            select(Country)
-            .where(Country.active.is_(True))
-            .order_by(Country.name)
+            select(Country).where(Country.active.is_(True)).order_by(Country.name)
         )
 
         return list(self.db.scalars(statement).all())

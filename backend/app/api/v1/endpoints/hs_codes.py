@@ -6,7 +6,6 @@ from app.repositories.hs_code import HSCodeRepository
 from app.schemas.hs_code import HSCodeResponse
 from app.services.hs_code import HSCodeService
 
-
 router = APIRouter(
     prefix="/hs-codes",
 )

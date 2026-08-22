@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.v1.endpoints import countries, health, hs_codes, hs_versions
-
+from app.api.v1.endpoints import countries, health, hs_codes, hs_versions, products
 
 app = FastAPI(
     title="Trade Opportunity Explorer API",
@@ -45,4 +44,10 @@ app.include_router(
     hs_codes.router,
     prefix="/api/v1",
     tags=["HS Codes"],
+)
+
+app.include_router(
+    products.router,
+    prefix="/api/v1",
+    tags=["Products"],
 )

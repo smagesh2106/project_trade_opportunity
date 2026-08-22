@@ -9,16 +9,11 @@ class HSVersionRepository:
         self.db = db
 
     def get_all(self) -> list[HSVersion]:
-        statement = (
-            select(HSVersion)
-            .order_by(HSVersion.version)
-        )
+        statement = select(HSVersion).order_by(HSVersion.version)
 
         return list(self.db.scalars(statement).all())
 
     def get_by_id(self, version_id: int) -> HSVersion | None:
-        statement = select(HSVersion).where(
-            HSVersion.id == version_id
-        )
+        statement = select(HSVersion).where(HSVersion.id == version_id)
 
         return self.db.scalar(statement)

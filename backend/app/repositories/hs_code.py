@@ -15,24 +15,16 @@ class HSCodeRepository:
         parent_id: int | None = None,
     ) -> list[HSCode]:
 
-        statement = select(HSCode).where(
-            HSCode.active.is_(True)
-        )
+        statement = select(HSCode).where(HSCode.active.is_(True))
 
         if hs_version_id is not None:
-            statement = statement.where(
-                HSCode.hs_version_id == hs_version_id
-            )
+            statement = statement.where(HSCode.hs_version_id == hs_version_id)
 
         if level is not None:
-            statement = statement.where(
-                HSCode.level == level
-            )
+            statement = statement.where(HSCode.level == level)
 
         if parent_id is not None:
-            statement = statement.where(
-                HSCode.parent_id == parent_id
-            )
+            statement = statement.where(HSCode.parent_id == parent_id)
 
         statement = statement.order_by(HSCode.code)
 
@@ -62,8 +54,6 @@ class HSCodeRepository:
         )
 
         if hs_version_id is not None:
-            statement = statement.where(
-                HSCode.hs_version_id == hs_version_id
-            )
+            statement = statement.where(HSCode.hs_version_id == hs_version_id)
 
         return self.db.scalar(statement)

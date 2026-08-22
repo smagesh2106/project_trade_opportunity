@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
 
-
 router = APIRouter()
 
 

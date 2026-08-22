@@ -6,7 +6,6 @@ from app.repositories.hs_version import HSVersionRepository
 from app.schemas.hs_version import HSVersionResponse
 from app.services.hs_version import HSVersionService
 
-
 router = APIRouter(
     prefix="/hs-versions",
 )

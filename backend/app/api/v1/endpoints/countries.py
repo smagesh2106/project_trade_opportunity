@@ -6,7 +6,6 @@ from app.repositories.country import CountryRepository
 from app.schemas.country import CountryResponse
 from app.services.country import CountryService
 
-
 router = APIRouter(
     prefix="/countries",
 )
@@ -29,7 +28,10 @@ def get_countries(
     return service.get_all()
 
 
-@router.get( "/{country_id}",response_model=CountryResponse,)
+@router.get(
+    "/{country_id}",
+    response_model=CountryResponse,
+)
 def get_country(
     country_id: int,
     service: CountryService = Depends(get_country_service),
