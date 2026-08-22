@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Country
@@ -30,3 +30,20 @@ class CountryRepository:
         )
 
         return self.db.scalar(statement)
+
+    def find_by_identifier(
+        self,
+        value: str,
+    ) -> Country | None:
+        normalized_value = value.strip().lower()
+
+        statement = select(Country).where(
+            Country.active.is_(True),
+            or_(
+                func.lower(Country.name) == normalized_value,
+                func.lower(Country.iso2) == normalized_value,
+                func.lower(Country.iso3) == normalized_value,
+            ),
+        )
+
+        return self.db.execute(statement).scalar_one_or_none()

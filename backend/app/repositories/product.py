@@ -1,7 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Product, ProductHSCode
+from app.models import Product, ProductHSCode, ProductAlias
 
 
 class ProductRepository:
@@ -31,6 +31,27 @@ class ProductRepository:
             .where(
                 Product.id == product_id,
                 Product.active.is_(True),
+            )
+        )
+
+        return self.db.execute(statement).unique().scalar_one_or_none()
+
+    def find_by_alias(
+        self,
+        alias: str,
+    ) -> Product | None:
+        normalized_alias = " ".join(alias.lower().strip().split())
+
+        statement = (
+            select(Product)
+            .join(Product.aliases)
+            .where(
+                Product.active.is_(True),
+                func.lower(ProductAlias.alias) == normalized_alias,
+            )
+            .options(
+                joinedload(Product.aliases),
+                joinedload(Product.hs_mappings).joinedload(ProductHSCode.hs_code),
             )
         )
 
