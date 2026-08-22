@@ -83,3 +83,30 @@ class TradeDataRepository:
         )
 
         return list(self.db.execute(statement).all())
+
+    def get_latest_period(
+        self,
+        hs_code_id: int,
+        trade_flow: str,
+        country_id: int | None = None,
+    ) -> tuple[date, date | None] | None:
+
+        statement = select(
+            TradeData.period_start,
+            TradeData.period_end,
+        ).where(
+            TradeData.hs_code_id == hs_code_id,
+            TradeData.trade_flow == trade_flow,
+        )
+
+        if country_id is not None:
+            statement = statement.where(TradeData.reporter_country_id == country_id)
+
+        statement = statement.order_by(TradeData.period_start.desc()).limit(1)
+
+        result = self.db.execute(statement).first()
+
+        if result is None:
+            return None
+
+        return result.period_start, result.period_end

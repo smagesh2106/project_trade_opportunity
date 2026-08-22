@@ -1,0 +1,22 @@
+from datetime import date
+
+from pydantic import BaseModel
+
+
+class TradeOpportunity(BaseModel):
+    rank: int
+    country_id: int
+    country_name: str
+    iso2: str
+    iso3: str
+    trade_value_usd: float
+    period_start: date
+    period_end: date | None = None
+
+
+class TradeOpportunityResponse(BaseModel):
+    hs_code: str
+    hs_description: str
+    period_start: date
+    period_end: date | None = None
+    opportunities: list[TradeOpportunity]
