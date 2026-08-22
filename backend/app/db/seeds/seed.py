@@ -92,24 +92,43 @@ def seed_hs_codes(db, hs_version):
             "parent_code": None,
         },
         {
-            "code": "853",
-            "description": "Electrical apparatus for switching or protecting electrical circuits",
-            "level": 3,
+            "code": "8537",
+            "description": (
+                "Boards, panels, consoles, desks, cabinets and other bases, "
+                "equipped with two or more apparatus of heading 85.35 or 85.36, "
+                "for electric control or the distribution of electricity, "
+                "including those incorporating instruments or apparatus of "
+                "Chapter 90, and numerical control apparatus, other than "
+                "switching apparatus of heading 85.17."
+            ),
+            "level": 4,
             "parent_code": "85",
         },
         {
-            "code": "8537",
-            "description": "Boards, panels, consoles, desks, cabinets and other bases",
-            "level": 4,
-            "parent_code": "853",
+            "code": "85371",
+            "description": "For a voltage not exceeding 1,000 V",
+            "level": 5,
+            "parent_code": "8537",
         },
         {
             "code": "853710",
             "description": "For a voltage not exceeding 1,000 V",
             "level": 6,
+            "parent_code": "85371",
+        },
+        {
+            "code": "85372",
+            "description": "For a voltage exceeding 1,000 V",
+            "level": 5,
             "parent_code": "8537",
         },
-    ]
+        {
+            "code": "853720",
+            "description": "For a voltage exceeding 1,000 V",
+            "level": 6,
+            "parent_code": "85372",
+        },
+    ]    
 
     code_objects = {}
 

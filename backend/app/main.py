@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.v1.endpoints import health
+from app.api.v1.endpoints import countries, health, hs_codes, hs_versions
 
 
 app = FastAPI(
@@ -28,4 +28,21 @@ app.include_router(
     health.router,
     prefix="/api/v1/health",
     tags=["Health"],
+)
+
+app.include_router(
+    countries.router,
+    prefix="/api/v1",
+    tags=["Countries"],
+)
+app.include_router(
+    hs_versions.router,
+    prefix="/api/v1",
+    tags=["HS Versions"],
+)
+
+app.include_router(
+    hs_codes.router,
+    prefix="/api/v1",
+    tags=["HS Codes"],
 )
