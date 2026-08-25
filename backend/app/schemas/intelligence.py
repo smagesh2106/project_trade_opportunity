@@ -1,11 +1,18 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CountryScope(str, Enum):
     ALL = "all"
     SPECIFIC = "specific"
+
+
+class CountryRole(str, Enum):
+    LOCATION = "location"
+    DESTINATION = "destination"
+    ORIGIN = "origin"
+    UNSPECIFIED = "unspecified"
 
 
 class TradeIntent(str, Enum):
@@ -19,7 +26,7 @@ class TradeIntent(str, Enum):
 
 
 class QueryUnderstanding(BaseModel):
-    intent: TradeIntent = Field(description=("The user's trade-related intent."))
+    intent: TradeIntent = Field(description="The user's trade-related intent.")
 
     product_text: str | None = Field(
         default=None,
@@ -33,7 +40,19 @@ class QueryUnderstanding(BaseModel):
 
     country_scope: CountryScope = Field(
         description=(
-            "Whether the query applies to all countries or " "a specific country."
+            "Whether the query applies to all countries " "or a specific country."
+        )
+    )
+
+    country_role: CountryRole = Field(
+        description=(
+            "The role of the mentioned country in the "
+            "trade query. Use 'location' when the country "
+            "is where suppliers or buyers are located, "
+            "'destination' when goods are going to the "
+            "country, 'origin' when goods are coming from "
+            "the country, and 'unspecified' when no country "
+            "is mentioned."
         )
     )
 
@@ -72,23 +91,56 @@ class ResolvedHSCode(BaseModel):
     source: str | None = None
 
 
-from pydantic import BaseModel, Field, model_validator
-
-
 class TradeQuery(BaseModel):
     original_query: str
     intent: TradeIntent
     product: ResolvedProduct | None = None
+
     country_scope: CountryScope
+    country_role: CountryRole
+
     country: ResolvedCountry | None = None
+
     hs_codes: list[ResolvedHSCode] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_country_scope(self):
+        # --------------------------------------------------
+        # ALL means there is no specific country.
+        # --------------------------------------------------
+
         if self.country_scope == CountryScope.ALL and self.country is not None:
-            raise ValueError("country must be None when country_scope is ALL")
+            raise ValueError("country must be None when " "country_scope is ALL")
+
+        # --------------------------------------------------
+        # SPECIFIC requires a resolved country.
+        # --------------------------------------------------
 
         if self.country_scope == CountryScope.SPECIFIC and self.country is None:
-            raise ValueError("country is required when country_scope is SPECIFIC")
+            raise ValueError("country is required when " "country_scope is SPECIFIC")
+
+        # --------------------------------------------------
+        # ALL queries must not claim a specific country role.
+        # --------------------------------------------------
+
+        if (
+            self.country_scope == CountryScope.ALL
+            and self.country_role != CountryRole.UNSPECIFIED
+        ):
+            raise ValueError(
+                "country_role must be UNSPECIFIED " "when country_scope is ALL"
+            )
+
+        # --------------------------------------------------
+        # SPECIFIC queries should have a meaningful role.
+        # --------------------------------------------------
+
+        if (
+            self.country_scope == CountryScope.SPECIFIC
+            and self.country_role == CountryRole.UNSPECIFIED
+        ):
+            raise ValueError(
+                "country_role must be specified when " "country_scope is SPECIFIC"
+            )
 
         return self

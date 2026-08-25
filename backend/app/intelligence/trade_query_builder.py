@@ -68,6 +68,7 @@ class TradeQueryBuilder:
             intent=understanding.intent,
             product=resolved_product,
             country_scope=understanding.country_scope,
+            country_role=understanding.country_role,
             country=resolved_country,
             hs_codes=hs_codes,
         )

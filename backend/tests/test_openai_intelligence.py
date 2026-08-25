@@ -1,20 +1,31 @@
 from app.services.openai_service import OpenAIService
 
 
-def test_query_understanding():
+def test_query(query: str):
     service = OpenAIService()
-
-    query = "I'm looking for suppliers of electrical panels in India."
-    # query = "Find suppliers of electrical panels."
 
     result = service.understand_query(query)
 
-    print("Intent:", result.intent)
-    print("Intent 2:", result.intent.value)
-    print("Product:", result.product_text)
-    print("Country:", result.country_text)
-    print("Country Scope:", result.country_scope.value)
+    print("\nQuery:")
+    print(f"  {query}")
+
+    print(f"Intent: " f"{result.intent.value}")
+
+    print(f"Product: " f"{result.product_text}")
+
+    print(f"Country: " f"{result.country_text}")
+
+    print(f"Country scope: " f"{result.country_scope.value}")
+
+    print(f"Country role: " f"{result.country_role.value}")
 
 
 if __name__ == "__main__":
-    test_query_understanding()
+
+    test_query("Find suppliers of electrical panels in India")
+
+    test_query("Find suppliers of electrical panels to India")
+
+    test_query("Find buyers of electrical panels from India")
+
+    test_query("Find suppliers of electrical panels")
