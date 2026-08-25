@@ -553,8 +553,210 @@ def test_unknown_product():
         db.close()
 
 
+def test_global_buyer_query():
+    """
+    Test global buyer search.
+
+    Query:
+        Who imports electrical panels?
+
+    Expected interpretation:
+        intent        = buyer_search
+        country_scope = all
+        country_role  = unspecified
+
+    Expected result with current seed data:
+        India - $25,600,000
+    """
+
+    db = SessionLocal()
+
+    try:
+        service = create_trade_intelligence_service(db)
+
+        query = "Who imports electrical panels?"
+
+        trade_query = service.build_trade_query(query)
+
+        print("\nGlobal Buyer TradeQuery:")
+        print(f"  Original: {trade_query.original_query}")
+        print(f"  Intent: {trade_query.intent.value}")
+        print(
+            f"  Product: "
+            f"{trade_query.product.name if trade_query.product else None}"
+        )
+        print(f"  Country scope: " f"{trade_query.country_scope.value}")
+        print(f"  Country role: " f"{trade_query.country_role.value}")
+        print(f"  Country: {trade_query.country}")
+        print("  HS codes:")
+
+        for hs_code in trade_query.hs_codes:
+            print(f"    {hs_code.code} " f"(confidence={hs_code.confidence})")
+
+        # --------------------------------------------------
+        # Validate TradeQuery
+        # --------------------------------------------------
+
+        assert trade_query.intent.value == "buyer_search"
+
+        assert trade_query.product is not None
+
+        assert trade_query.product.name == "Electrical Control Panels"
+
+        assert trade_query.country_scope.value == "all"
+
+        assert trade_query.country_role.value == "unspecified"
+
+        assert trade_query.country is None
+
+        assert len(trade_query.hs_codes) == 1
+
+        assert trade_query.hs_codes[0].code == "853710"
+
+        # --------------------------------------------------
+        # Execute analysis
+        # --------------------------------------------------
+
+        result = service.analyze(query)
+
+        # --------------------------------------------------
+        # Validate result
+        # --------------------------------------------------
+
+        assert result.hs_code == "853710"
+
+        assert len(result.opportunities) == 1
+
+        assert result.opportunities[0].country_name == "India"
+
+        assert result.opportunities[0].iso3 == "IND"
+
+        assert result.opportunities[0].trade_value_usd == 25_600_000
+
+        print("\nGlobal buyer opportunities:")
+
+        for opportunity in result.opportunities:
+            print(
+                f"{opportunity.rank}. "
+                f"{opportunity.country_name} "
+                f"({opportunity.iso3}) - "
+                f"${opportunity.trade_value_usd:,.2f}"
+            )
+
+    finally:
+        db.close()
+
+
+def test_specific_buyer_query():
+    """
+    Test buyer search for a specific country.
+
+    Query:
+        Who imports electrical panels in India?
+
+    Expected interpretation:
+        intent        = buyer_search
+        country_scope = specific
+        country_role  = location
+        country       = India
+
+    Expected result with current seed data:
+        India - $25,600,000
+    """
+
+    db = SessionLocal()
+
+    try:
+        service = create_trade_intelligence_service(db)
+
+        query = "Who imports electrical panels in India?"
+
+        trade_query = service.build_trade_query(query)
+
+        print("\nSpecific Buyer TradeQuery:")
+        print(f"  Original: {trade_query.original_query}")
+        print(f"  Intent: {trade_query.intent.value}")
+        print(
+            f"  Product: "
+            f"{trade_query.product.name if trade_query.product else None}"
+        )
+        print(f"  Country scope: " f"{trade_query.country_scope.value}")
+        print(f"  Country role: " f"{trade_query.country_role.value}")
+
+        if trade_query.country:
+            print(f"  Country: " f"{trade_query.country.name}")
+        else:
+            print("  Country: None")
+
+        print("  HS codes:")
+
+        for hs_code in trade_query.hs_codes:
+            print(f"    {hs_code.code} " f"(confidence={hs_code.confidence})")
+
+        # --------------------------------------------------
+        # Validate TradeQuery
+        # --------------------------------------------------
+
+        assert trade_query.intent.value == "buyer_search"
+
+        assert trade_query.product is not None
+
+        assert trade_query.product.name == "Electrical Control Panels"
+
+        assert trade_query.country_scope.value == "specific"
+
+        assert trade_query.country_role.value == "location"
+
+        assert trade_query.country is not None
+
+        assert trade_query.country.name == "India"
+
+        assert trade_query.country.iso2 == "IN"
+
+        assert trade_query.country.iso3 == "IND"
+
+        assert len(trade_query.hs_codes) == 1
+
+        assert trade_query.hs_codes[0].code == "853710"
+
+        # --------------------------------------------------
+        # Execute analysis
+        # --------------------------------------------------
+
+        result = service.analyze(query)
+
+        # --------------------------------------------------
+        # Validate result
+        # --------------------------------------------------
+
+        assert result.hs_code == "853710"
+
+        assert len(result.opportunities) == 1
+
+        assert result.opportunities[0].country_name == "India"
+
+        assert result.opportunities[0].iso3 == "IND"
+
+        assert result.opportunities[0].trade_value_usd == 25_600_000
+
+        print("\nBuyer opportunities for India:")
+
+        for opportunity in result.opportunities:
+            print(
+                f"{opportunity.rank}. "
+                f"{opportunity.country_name} "
+                f"({opportunity.iso3}) - "
+                f"${opportunity.trade_value_usd:,.2f}"
+            )
+
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     test_specific_country_query()
     test_all_country_query()
     test_supplier_location_query()
     test_unknown_product()
+    test_global_buyer_query()
+    test_specific_buyer_query()

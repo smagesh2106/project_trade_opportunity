@@ -30,9 +30,17 @@ class TradeOpportunityService:
 
         # --------------------------------------------------
         # Validate intent
+        #
+        # Currently supported:
+        #
+        #   supplier_search
+        #   buyer_search
         # --------------------------------------------------
 
-        if trade_query.intent != TradeIntent.SUPPLIER_SEARCH:
+        if trade_query.intent not in (
+            TradeIntent.SUPPLIER_SEARCH,
+            TradeIntent.BUYER_SEARCH,
+        ):
             raise ValueError(
                 f"Unsupported trade intent: " f"{trade_query.intent.value}"
             )
@@ -72,102 +80,27 @@ class TradeOpportunityService:
         period_start = date(2025, 1, 1)
         period_end = date(2025, 12, 31)
 
-        # --------------------------------------------------
-        # Specific country
-        # --------------------------------------------------
+        # ==================================================
+        # SUPPLIER SEARCH
+        # ==================================================
 
-        if trade_query.country_scope == CountryScope.SPECIFIC:
+        if trade_query.intent == TradeIntent.SUPPLIER_SEARCH:
 
-            if trade_query.country is None:
-                raise ValueError(
-                    "Country is required for specific " "country searches."
-                )
+            results = self._analyze_supplier_search(
+                trade_query=trade_query,
+                hs_code_id=hs_code.id,
+                period_start=period_start,
+                period_end=period_end,
+            )
 
-            # --------------------------------------------------
-            # LOCATION
-            #
-            # Example:
-            #
-            # "Find suppliers of electrical panels in India"
-            #
-            # This means suppliers located in India.
-            #
-            # Our current trade_data model contains country-to-
-            # country trade flows, not supplier-company locations.
-            #
-            # Therefore this cannot yet be answered from the
-            # current trade dataset.
-            # --------------------------------------------------
+        # ==================================================
+        # BUYER SEARCH
+        # ==================================================
 
-            if trade_query.country_role == CountryRole.LOCATION:
-                raise ValueError(
-                    "Supplier location searches are not yet "
-                    "supported by the trade data model. "
-                    "The current dataset contains country-to-country "
-                    "trade flows, not supplier company locations."
-                )
+        elif trade_query.intent == TradeIntent.BUYER_SEARCH:
 
-            # --------------------------------------------------
-            # DESTINATION
-            #
-            # Example:
-            #
-            # "Find suppliers of electrical panels to India"
-            #
-            # India = importing/destination country.
-            #
-            # Find countries supplying India.
-            # --------------------------------------------------
-
-            if trade_query.country_role == CountryRole.DESTINATION:
-
-                results = self.trade_repository.find_supplier_countries(
-                    hs_code_id=hs_code.id,
-                    target_country_id=trade_query.country.id,
-                    period_start=period_start,
-                    period_end=period_end,
-                )
-
-            # --------------------------------------------------
-            # ORIGIN
-            #
-            # For supplier_search, "from India" does not
-            # describe the destination of the suppliers.
-            #
-            # Example:
-            #
-            # "Find suppliers of electrical panels from India"
-            #
-            # would mean suppliers originating from India.
-            #
-            # Our current supplier-search semantics do not yet
-            # support this as a separate business operation.
-            # --------------------------------------------------
-
-            elif trade_query.country_role == CountryRole.ORIGIN:
-                raise ValueError(
-                    "Origin-based supplier searches are not yet "
-                    "supported for supplier_search."
-                )
-
-            else:
-                raise ValueError(
-                    f"Unsupported country role: " f"{trade_query.country_role.value}"
-                )
-
-        # --------------------------------------------------
-        # All countries
-        #
-        # Example:
-        #
-        # "Find suppliers of electrical panels"
-        #
-        # Find countries exporting the product globally.
-        # --------------------------------------------------
-
-        elif trade_query.country_scope == CountryScope.ALL:
-
-            results = self.trade_repository.find_global_supplier_countries(
+            results = self._analyze_buyer_search(
+                trade_query=trade_query,
                 hs_code_id=hs_code.id,
                 period_start=period_start,
                 period_end=period_end,
@@ -175,12 +108,12 @@ class TradeOpportunityService:
 
         else:
             raise ValueError(
-                f"Unsupported country scope: " f"{trade_query.country_scope}"
+                f"Unsupported trade intent: " f"{trade_query.intent.value}"
             )
 
-        # --------------------------------------------------
+        # ==================================================
         # Convert repository results into business results
-        # --------------------------------------------------
+        # ==================================================
 
         opportunities: list[TradeOpportunity] = []
 
@@ -212,4 +145,238 @@ class TradeOpportunityService:
             period_start=period_start,
             period_end=period_end,
             opportunities=opportunities,
+        )
+
+    # ======================================================
+    # SUPPLIER SEARCH
+    # ======================================================
+
+    def _analyze_supplier_search(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[tuple[int, float]]:
+
+        # --------------------------------------------------
+        # Specific country
+        # --------------------------------------------------
+
+        if trade_query.country_scope == CountryScope.SPECIFIC:
+
+            if trade_query.country is None:
+                raise ValueError(
+                    "Country is required for specific " "country searches."
+                )
+
+            # --------------------------------------------------
+            # LOCATION
+            #
+            # Example:
+            #
+            # "Find suppliers of electrical panels in India"
+            #
+            # This means suppliers located in India.
+            #
+            # Our current trade_data model contains
+            # country-to-country trade flows, not supplier
+            # company locations.
+            # --------------------------------------------------
+
+            if trade_query.country_role == CountryRole.LOCATION:
+                raise ValueError(
+                    "Supplier location searches are not yet "
+                    "supported by the trade data model. "
+                    "The current dataset contains "
+                    "country-to-country trade flows, "
+                    "not supplier company locations."
+                )
+
+            # --------------------------------------------------
+            # DESTINATION
+            #
+            # Example:
+            #
+            # "Find suppliers of electrical panels to India"
+            #
+            # India = importing/destination country.
+            #
+            # Find countries supplying India.
+            # --------------------------------------------------
+
+            if trade_query.country_role == CountryRole.DESTINATION:
+
+                return self.trade_repository.find_supplier_countries(
+                    hs_code_id=hs_code_id,
+                    target_country_id=(trade_query.country.id),
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            # --------------------------------------------------
+            # ORIGIN
+            #
+            # Example:
+            #
+            # "Find suppliers of electrical panels from India"
+            #
+            # This would describe suppliers originating
+            # from India.
+            #
+            # Our current supplier-search semantics do not
+            # yet support this as a separate operation.
+            # --------------------------------------------------
+
+            if trade_query.country_role == CountryRole.ORIGIN:
+                raise ValueError(
+                    "Origin-based supplier searches are not "
+                    "yet supported for supplier_search."
+                )
+
+            raise ValueError(
+                f"Unsupported country role: " f"{trade_query.country_role.value}"
+            )
+
+        # --------------------------------------------------
+        # All countries
+        #
+        # Example:
+        #
+        # "Find suppliers of electrical panels"
+        #
+        # Find countries exporting the product globally.
+        # --------------------------------------------------
+
+        if trade_query.country_scope == CountryScope.ALL:
+
+            return self.trade_repository.find_global_supplier_countries(
+                hs_code_id=hs_code_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        raise ValueError(
+            f"Unsupported country scope: " f"{trade_query.country_scope.value}"
+        )
+
+    # ======================================================
+    # BUYER SEARCH
+    # ======================================================
+
+    def _analyze_buyer_search(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[tuple[int, float]]:
+
+        # --------------------------------------------------
+        # Specific country
+        # --------------------------------------------------
+
+        if trade_query.country_scope == CountryScope.SPECIFIC:
+
+            if trade_query.country is None:
+                raise ValueError(
+                    "Country is required for specific " "country searches."
+                )
+
+            # --------------------------------------------------
+            # LOCATION
+            #
+            # Example:
+            #
+            # "Who imports electrical panels in India?"
+            #
+            # India = buyer/importer location.
+            #
+            # Our current trade data can tell us India's
+            # import activity, but cannot identify individual
+            # importer companies.
+            #
+            # Therefore the result is country-level import
+            # activity.
+            # --------------------------------------------------
+
+            if trade_query.country_role == CountryRole.LOCATION:
+
+                return self.trade_repository.find_buyer_countries(
+                    hs_code_id=hs_code_id,
+                    target_country_id=(trade_query.country.id),
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            # --------------------------------------------------
+            # DESTINATION
+            #
+            # Example:
+            #
+            # "Who imports electrical panels to India?"
+            #
+            # For buyer_search, destination also identifies
+            # the importing country.
+            #
+            # At the current country-level data layer,
+            # this is equivalent to the specific buyer country.
+            # --------------------------------------------------
+
+            if trade_query.country_role == CountryRole.DESTINATION:
+
+                return self.trade_repository.find_buyer_countries(
+                    hs_code_id=hs_code_id,
+                    target_country_id=(trade_query.country.id),
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            # --------------------------------------------------
+            # ORIGIN
+            #
+            # Example:
+            #
+            # "Who buys electrical panels from India?"
+            #
+            # India = origin/exporting country.
+            #
+            # The countries importing from India are the
+            # buyer countries.
+            #
+            # This is NOT yet implemented in the repository.
+            # We will add this capability separately because
+            # it requires grouping/filtering on partner_country.
+            # --------------------------------------------------
+
+            if trade_query.country_role == CountryRole.ORIGIN:
+                raise ValueError(
+                    "Origin-based buyer searches are not yet "
+                    "supported by the current buyer repository."
+                )
+
+            raise ValueError(
+                f"Unsupported country role: " f"{trade_query.country_role.value}"
+            )
+
+        # --------------------------------------------------
+        # All countries
+        #
+        # Example:
+        #
+        # "Who imports electrical panels?"
+        #
+        # Find countries importing the product globally.
+        # --------------------------------------------------
+
+        if trade_query.country_scope == CountryScope.ALL:
+
+            return self.trade_repository.find_global_buyer_countries(
+                hs_code_id=hs_code_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        raise ValueError(
+            f"Unsupported country scope: " f"{trade_query.country_scope.value}"
         )
