@@ -118,8 +118,7 @@ class TradeDataRepository:
         #
         # reporter_country = Saudi Arabia
         #
-        # We return Saudi Arabia's total imports,
-        # grouped by reporter country.
+        # We return Saudi Arabia's total imports.
         # --------------------------------------------------
 
         if target_country_id is not None:
@@ -158,10 +157,6 @@ class TradeDataRepository:
             TradeData.trade_flow == "import",
         )
 
-        # --------------------------------------------------
-        # Optional time filters
-        # --------------------------------------------------
-
         if period_start is not None:
             statement = statement.where(TradeData.period_start >= period_start)
 
@@ -180,10 +175,62 @@ class TradeDataRepository:
         #
         # GROUP BY reporter_country_id
         #
-        # gives us countries importing the product.
+        # gives countries importing the product.
         # --------------------------------------------------
 
         statement = statement.group_by(TradeData.reporter_country_id).order_by(
+            func.sum(TradeData.trade_value_usd).desc()
+        )
+
+        return list(self.db.execute(statement).all())
+
+    # ==================================================
+    # BUYER SEARCH FROM A SPECIFIC ORIGIN
+    # ==================================================
+
+    def find_buyer_countries_from_origin(
+        self,
+        hs_code_id: int,
+        origin_country_id: int,
+        period_start: date | None = None,
+        period_end: date | None = None,
+    ) -> list[tuple[int, float]]:
+
+        statement = select(
+            TradeData.partner_country_id,
+            func.sum(TradeData.trade_value_usd).label("total_trade_value_usd"),
+        ).where(
+            TradeData.hs_code_id == hs_code_id,
+            TradeData.trade_flow == "export",
+            TradeData.reporter_country_id == origin_country_id,
+        )
+
+        # --------------------------------------------------
+        # Optional time filters
+        # --------------------------------------------------
+
+        if period_start is not None:
+            statement = statement.where(TradeData.period_start >= period_start)
+
+        if period_end is not None:
+            statement = statement.where(TradeData.period_start <= period_end)
+
+        # --------------------------------------------------
+        # Origin-based buyer search
+        #
+        # Example:
+        #
+        # "Who buys electrical panels from India?"
+        #
+        # reporter_country = India
+        # partner_country  = buyer
+        #
+        # Therefore:
+        #
+        # GROUP BY partner_country_id
+        # --------------------------------------------------
+
+        statement = statement.group_by(TradeData.partner_country_id).order_by(
             func.sum(TradeData.trade_value_usd).desc()
         )
 

@@ -87,6 +87,7 @@ def seed_hs_version(db):
             version="2022",
             source="Development seed data",
         )
+
         db.add(version)
         db.flush()
 
@@ -108,6 +109,7 @@ def seed_data_source(db):
                 "Synthetic data for development and " "integration testing only."
             ),
         )
+
         db.add(source)
         db.flush()
 
@@ -118,44 +120,46 @@ def seed_hs_codes(db, hs_version):
     codes = [
         {
             "code": "85",
-            "description": "Electrical machinery and equipment and parts thereof",
+            "description": ("Electrical machinery and equipment and " "parts thereof"),
             "level": 2,
             "parent_code": None,
         },
         {
             "code": "8537",
             "description": (
-                "Boards, panels, consoles, desks, cabinets and other bases, "
-                "equipped with two or more apparatus of heading 85.35 or 85.36, "
-                "for electric control or the distribution of electricity, "
-                "including those incorporating instruments or apparatus of "
-                "Chapter 90, and numerical control apparatus, other than "
-                "switching apparatus of heading 85.17."
+                "Boards, panels, consoles, desks, cabinets "
+                "and other bases, equipped with two or more "
+                "apparatus of heading 85.35 or 85.36, for "
+                "electric control or the distribution of "
+                "electricity, including those incorporating "
+                "instruments or apparatus of Chapter 90, "
+                "and numerical control apparatus, other "
+                "than switching apparatus of heading 85.17."
             ),
             "level": 4,
             "parent_code": "85",
         },
         {
             "code": "85371",
-            "description": "For a voltage not exceeding 1,000 V",
+            "description": ("For a voltage not exceeding 1,000 V"),
             "level": 5,
             "parent_code": "8537",
         },
         {
             "code": "853710",
-            "description": "For a voltage not exceeding 1,000 V",
+            "description": ("For a voltage not exceeding 1,000 V"),
             "level": 6,
             "parent_code": "85371",
         },
         {
             "code": "85372",
-            "description": "For a voltage exceeding 1,000 V",
+            "description": ("For a voltage exceeding 1,000 V"),
             "level": 5,
             "parent_code": "8537",
         },
         {
             "code": "853720",
-            "description": "For a voltage exceeding 1,000 V",
+            "description": ("For a voltage exceeding 1,000 V"),
             "level": 6,
             "parent_code": "85372",
         },
@@ -208,9 +212,10 @@ def seed_products(db, hs_codes):
     if product is None:
         product = Product(
             name="Electrical Control Panels",
-            description="Electrical control and distribution panel assemblies.",
+            description=("Electrical control and distribution " "panel assemblies."),
             category="Electrical Equipment",
         )
+
         db.add(product)
         db.flush()
 
@@ -277,9 +282,9 @@ def seed_trade_data(
     hs_853710 = hs_codes["853710"]
 
     records = [
-        # --------------------------------------------------
+        # ==================================================
         # India imports - 2024
-        # --------------------------------------------------
+        # ==================================================
         {
             "reporter_country_id": india.id,
             "partner_country_id": germany.id,
@@ -328,9 +333,9 @@ def seed_trade_data(
             "quantity": 180,
             "quantity_unit": "units",
         },
-        # --------------------------------------------------
+        # ==================================================
         # India imports - 2025
-        # --------------------------------------------------
+        # ==================================================
         {
             "reporter_country_id": india.id,
             "partner_country_id": germany.id,
@@ -379,9 +384,9 @@ def seed_trade_data(
             "quantity": 220,
             "quantity_unit": "units",
         },
-        # --------------------------------------------------
+        # ==================================================
         # Global exports - 2025
-        # --------------------------------------------------
+        # ==================================================
         {
             "reporter_country_id": germany.id,
             "partner_country_id": usa.id,
@@ -430,6 +435,64 @@ def seed_trade_data(
             "quantity": 650,
             "quantity_unit": "units",
         },
+        # ==================================================
+        # India exports - 2025
+        #
+        # Example business question:
+        #
+        # "Who buys electrical panels from India?"
+        #
+        # reporter_country = India
+        # partner_country  = buyer
+        # ==================================================
+        {
+            "reporter_country_id": india.id,
+            "partner_country_id": germany.id,
+            "hs_code_id": hs_853710.id,
+            "period_start": date(2025, 1, 1),
+            "period_end": date(2025, 12, 31),
+            "period_type": "annual",
+            "trade_flow": "export",
+            "trade_value_usd": 14_000_000,
+            "quantity": 1300,
+            "quantity_unit": "units",
+        },
+        {
+            "reporter_country_id": india.id,
+            "partner_country_id": usa.id,
+            "hs_code_id": hs_853710.id,
+            "period_start": date(2025, 1, 1),
+            "period_end": date(2025, 12, 31),
+            "period_type": "annual",
+            "trade_flow": "export",
+            "trade_value_usd": 11_000_000,
+            "quantity": 1000,
+            "quantity_unit": "units",
+        },
+        {
+            "reporter_country_id": india.id,
+            "partner_country_id": uae.id,
+            "hs_code_id": hs_853710.id,
+            "period_start": date(2025, 1, 1),
+            "period_end": date(2025, 12, 31),
+            "period_type": "annual",
+            "trade_flow": "export",
+            "trade_value_usd": 6_000_000,
+            "quantity": 550,
+            "quantity_unit": "units",
+        },
+        {
+            "reporter_country_id": india.id,
+            "partner_country_id": saudi_arabia.id,
+            "hs_code_id": hs_853710.id,
+            "period_start": date(2025, 1, 1),
+            "period_end": date(2025, 12, 31),
+            "period_type": "annual",
+            "trade_flow": "export",
+            "trade_value_usd": 4_000_000,
+            "quantity": 380,
+            "quantity_unit": "units",
+        },
     ]
 
     for data in records:
@@ -466,14 +529,55 @@ def seed():
     db = SessionLocal()
 
     try:
+        # --------------------------------------------------
+        # 1. Countries
+        # --------------------------------------------------
+
         countries = seed_countries(db)
 
-        hs_version = seed_hs_version(db)
-        hs_codes = seed_hs_codes(db, hs_version)
+        # --------------------------------------------------
+        # 2. HS version
+        # --------------------------------------------------
 
-        seed_products(db, hs_codes)
+        hs_version = seed_hs_version(db)
+
+        # --------------------------------------------------
+        # 3. HS codes
+        # --------------------------------------------------
+
+        hs_codes = seed_hs_codes(
+            db,
+            hs_version,
+        )
+
+        # --------------------------------------------------
+        # 4. Products and HS mappings
+        # --------------------------------------------------
+
+        seed_products(
+            db,
+            hs_codes,
+        )
+
+        # --------------------------------------------------
+        # 5. Trade data source
+        # --------------------------------------------------
 
         source = seed_data_source(db)
+
+        # --------------------------------------------------
+        # 6. Trade data
+        #
+        # This includes:
+        #
+        #   India imports
+        #   Global exports
+        #   India exports
+        #
+        # The India exports allow queries such as:
+        #
+        # "Who buys electrical panels from India?"
+        # --------------------------------------------------
 
         seed_trade_data(
             db,
@@ -481,6 +585,10 @@ def seed():
             hs_codes,
             source,
         )
+
+        # --------------------------------------------------
+        # Commit everything together
+        # --------------------------------------------------
 
         db.commit()
 

@@ -84,19 +84,19 @@ def test_trade_data_repository():
         # UAE            12.0M
         # Saudi Arabia    7.0M
 
-        assert len(global_supplier_results) == 4
+        assert len(global_supplier_results) == 5
 
-        assert global_supplier_results[0][0] == 4
-        assert float(global_supplier_results[0][1]) == 25_000_000
+        assert global_supplier_results[1][0] == 4
+        assert float(global_supplier_results[1][1]) == 25_000_000
 
-        assert global_supplier_results[1][0] == 5
-        assert float(global_supplier_results[1][1]) == 20_000_000
+        assert global_supplier_results[2][0] == 5
+        assert float(global_supplier_results[2][1]) == 20_000_000
 
-        assert global_supplier_results[2][0] == 3
-        assert float(global_supplier_results[2][1]) == 12_000_000
+        assert global_supplier_results[3][0] == 3
+        assert float(global_supplier_results[3][1]) == 12_000_000
 
-        assert global_supplier_results[3][0] == 2
-        assert float(global_supplier_results[3][1]) == 7_000_000
+        assert global_supplier_results[4][0] == 2
+        assert float(global_supplier_results[4][1]) == 7_000_000
 
         # ==================================================
         # Global buyer search
@@ -158,6 +158,52 @@ def test_trade_data_repository():
         assert buyer_results[0][0] == 1
 
         assert float(buyer_results[0][1]) == 25_600_000
+
+        # ==================================================
+        # Buyer search from a specific origin
+        # ==================================================
+
+        buyer_from_india_results = repository.find_buyer_countries_from_origin(
+            hs_code_id=hs_code_id,
+            origin_country_id=1,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+        print("\nBuyer countries for exports from India:")
+
+        for country_id, trade_value in buyer_from_india_results:
+            print(
+                f"Country ID: {country_id}, "
+                f"Export value from India: "
+                f"${float(trade_value):,.2f}"
+            )
+
+        # --------------------------------------------------
+        # Current synthetic dataset does not yet contain
+        # India export records for this HS code.
+        #
+        # Therefore the expected result is currently [].
+        #
+        # We will add India export seed data in the next
+        # step and then change this assertion.
+        # --------------------------------------------------
+
+        assert len(buyer_from_india_results) == 4
+
+        assert buyer_from_india_results[0][0] == 4
+        assert float(buyer_from_india_results[0][1]) == 14_000_000
+
+        assert buyer_from_india_results[1][0] == 5
+        assert float(buyer_from_india_results[1][1]) == 11_000_000
+
+        assert buyer_from_india_results[2][0] == 3
+        assert float(buyer_from_india_results[2][1]) == 6_000_000
+
+        assert buyer_from_india_results[3][0] == 2
+        assert float(buyer_from_india_results[3][1]) == 4_000_000
+
+        print("\nIndia-origin buyer search correctly " "returned no records: []")
 
         # ==================================================
         # Unknown HS code

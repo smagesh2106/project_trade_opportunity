@@ -30,34 +30,30 @@ class TradeOpportunityService:
 
         # --------------------------------------------------
         # Validate intent
-        #
-        # Currently supported:
-        #
-        #   supplier_search
-        #   buyer_search
         # --------------------------------------------------
 
         if trade_query.intent not in (
             TradeIntent.SUPPLIER_SEARCH,
             TradeIntent.BUYER_SEARCH,
         ):
-            raise ValueError(
-                f"Unsupported trade intent: " f"{trade_query.intent.value}"
-            )
+            raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
 
         # --------------------------------------------------
         # Product is required
         # --------------------------------------------------
 
         if trade_query.product is None:
-            raise ValueError("Product is required for trade analysis.")
+            raise ValueError(
+                f"Product could not be resolved from the query: "
+                f"{trade_query.original_query}"
+            )
 
         # --------------------------------------------------
         # At least one HS code is required
         # --------------------------------------------------
 
         if not trade_query.hs_codes:
-            raise ValueError("At least one HS code is required " "for trade analysis.")
+            raise ValueError("At least one HS code is required for trade analysis.")
 
         # --------------------------------------------------
         # First version:
@@ -107,9 +103,7 @@ class TradeOpportunityService:
             )
 
         else:
-            raise ValueError(
-                f"Unsupported trade intent: " f"{trade_query.intent.value}"
-            )
+            raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
 
         # ==================================================
         # Convert repository results into business results
@@ -166,9 +160,7 @@ class TradeOpportunityService:
         if trade_query.country_scope == CountryScope.SPECIFIC:
 
             if trade_query.country is None:
-                raise ValueError(
-                    "Country is required for specific " "country searches."
-                )
+                raise ValueError("Country is required for specific country searches.")
 
             # --------------------------------------------------
             # LOCATION
@@ -209,7 +201,7 @@ class TradeOpportunityService:
 
                 return self.trade_repository.find_supplier_countries(
                     hs_code_id=hs_code_id,
-                    target_country_id=(trade_query.country.id),
+                    target_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
                 )
@@ -221,11 +213,10 @@ class TradeOpportunityService:
             #
             # "Find suppliers of electrical panels from India"
             #
-            # This would describe suppliers originating
-            # from India.
+            # This describes suppliers originating from India.
             #
-            # Our current supplier-search semantics do not
-            # yet support this as a separate operation.
+            # Our current supplier-search semantics do not yet
+            # support this as a separate operation.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.ORIGIN:
@@ -279,9 +270,7 @@ class TradeOpportunityService:
         if trade_query.country_scope == CountryScope.SPECIFIC:
 
             if trade_query.country is None:
-                raise ValueError(
-                    "Country is required for specific " "country searches."
-                )
+                raise ValueError("Country is required for specific country searches.")
 
             # --------------------------------------------------
             # LOCATION
@@ -292,7 +281,7 @@ class TradeOpportunityService:
             #
             # India = buyer/importer location.
             #
-            # Our current trade data can tell us India's
+            # The current trade data can tell us India's
             # import activity, but cannot identify individual
             # importer companies.
             #
@@ -304,7 +293,7 @@ class TradeOpportunityService:
 
                 return self.trade_repository.find_buyer_countries(
                     hs_code_id=hs_code_id,
-                    target_country_id=(trade_query.country.id),
+                    target_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
                 )
@@ -316,18 +305,17 @@ class TradeOpportunityService:
             #
             # "Who imports electrical panels to India?"
             #
-            # For buyer_search, destination also identifies
-            # the importing country.
+            # India = destination/importing country.
             #
-            # At the current country-level data layer,
-            # this is equivalent to the specific buyer country.
+            # At the country-level data layer this is
+            # equivalent to the specific buyer country.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.DESTINATION:
 
                 return self.trade_repository.find_buyer_countries(
                     hs_code_id=hs_code_id,
-                    target_country_id=(trade_query.country.id),
+                    target_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
                 )
@@ -341,18 +329,23 @@ class TradeOpportunityService:
             #
             # India = origin/exporting country.
             #
-            # The countries importing from India are the
-            # buyer countries.
+            # Find the countries importing from India.
             #
-            # This is NOT yet implemented in the repository.
-            # We will add this capability separately because
-            # it requires grouping/filtering on partner_country.
+            # Repository method:
+            #
+            # find_buyer_countries_from_origin()
+            #
+            # reporter_country = India
+            # partner_country  = buyer
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.ORIGIN:
-                raise ValueError(
-                    "Origin-based buyer searches are not yet "
-                    "supported by the current buyer repository."
+
+                return self.trade_repository.find_buyer_countries_from_origin(
+                    hs_code_id=hs_code_id,
+                    origin_country_id=trade_query.country.id,
+                    period_start=period_start,
+                    period_end=period_end,
                 )
 
             raise ValueError(
