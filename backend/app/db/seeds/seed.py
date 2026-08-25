@@ -3,7 +3,6 @@ from datetime import date
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-
 from app.models import (
     Country,
     DataSource,
@@ -117,49 +116,409 @@ def seed_data_source(db):
 
 
 def seed_hs_codes(db, hs_version):
+    """
+    Seed the initial HS 2022 hierarchy required by the
+    electrical-equipment product catalog.
+
+    Product-to-HS mappings are maintained separately
+    in seed_products().
+
+    Existing trade data continues to use HS 853710.
+    """
+
     codes = [
+        # ==================================================
+        # Chapter 85
+        # ==================================================
         {
             "code": "85",
-            "description": ("Electrical machinery and equipment and " "parts thereof"),
+            "description": ("Electrical machinery and equipment and parts thereof"),
             "level": 2,
             "parent_code": None,
         },
+        # ==================================================
+        # 85.04 - Transformers / static converters / inductors
+        # ==================================================
+        {
+            "code": "8504",
+            "description": (
+                "Electrical transformers, static converters "
+                "(for example, rectifiers) and inductors."
+            ),
+            "level": 4,
+            "parent_code": "85",
+        },
+        {
+            "code": "85041",
+            "description": "Liquid dielectric transformers.",
+            "level": 5,
+            "parent_code": "8504",
+        },
+        {
+            "code": "85042",
+            "description": "Other liquid dielectric transformers.",
+            "level": 5,
+            "parent_code": "8504",
+        },
+        {
+            "code": "85043",
+            "description": "Other transformers.",
+            "level": 5,
+            "parent_code": "8504",
+        },
+        {
+            "code": "85044",
+            "description": "Static converters.",
+            "level": 5,
+            "parent_code": "8504",
+        },
+        {
+            "code": "85045",
+            "description": "Other inductors.",
+            "level": 5,
+            "parent_code": "8504",
+        },
+        {
+            "code": "85049",
+            "description": "Parts.",
+            "level": 5,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850410",
+            "description": "Ballasts for discharge lamps or tubes.",
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850421",
+            "description": (
+                "Liquid dielectric transformers having a power "
+                "handling capacity not exceeding 650 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850422",
+            "description": (
+                "Liquid dielectric transformers having a power "
+                "handling capacity exceeding 650 kVA but not "
+                "exceeding 10,000 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850423",
+            "description": (
+                "Liquid dielectric transformers having a power "
+                "handling capacity exceeding 10,000 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850431",
+            "description": (
+                "Other transformers having a power handling "
+                "capacity not exceeding 1 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850432",
+            "description": (
+                "Other transformers having a power handling "
+                "capacity exceeding 1 kVA but not exceeding 16 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850433",
+            "description": (
+                "Other transformers having a power handling "
+                "capacity exceeding 16 kVA but not exceeding 500 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850434",
+            "description": (
+                "Other transformers having a power handling "
+                "capacity exceeding 500 kVA."
+            ),
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850440",
+            "description": "Static converters.",
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850450",
+            "description": "Other inductors.",
+            "level": 6,
+            "parent_code": "8504",
+        },
+        {
+            "code": "850490",
+            "description": "Parts.",
+            "level": 6,
+            "parent_code": "8504",
+        },
+        # ==================================================
+        # 85.35 - HV switching / protecting equipment
+        # ==================================================
+        {
+            "code": "8535",
+            "description": (
+                "Electrical apparatus for switching or protecting "
+                "electrical circuits, or for making connections to "
+                "or in electrical circuits, for a voltage exceeding "
+                "1,000 volts."
+            ),
+            "level": 4,
+            "parent_code": "85",
+        },
+        {
+            "code": "85351",
+            "description": "Fuses.",
+            "level": 5,
+            "parent_code": "8535",
+        },
+        {
+            "code": "85352",
+            "description": "Automatic circuit breakers.",
+            "level": 5,
+            "parent_code": "8535",
+        },
+        {
+            "code": "85353",
+            "description": ("Isolating switches and make-and-break switches."),
+            "level": 5,
+            "parent_code": "8535",
+        },
+        {
+            "code": "85354",
+            "description": (
+                "Lightning arresters, voltage limiters and " "surge suppressors."
+            ),
+            "level": 5,
+            "parent_code": "8535",
+        },
+        {
+            "code": "85359",
+            "description": "Other apparatus.",
+            "level": 5,
+            "parent_code": "8535",
+        },
+        {
+            "code": "853510",
+            "description": "Fuses.",
+            "level": 6,
+            "parent_code": "8535",
+        },
+        {
+            "code": "853521",
+            "description": (
+                "Automatic circuit breakers for a voltage " "of less than 72.5 kV."
+            ),
+            "level": 6,
+            "parent_code": "8535",
+        },
+        {
+            "code": "853529",
+            "description": "Other automatic circuit breakers.",
+            "level": 6,
+            "parent_code": "8535",
+        },
+        {
+            "code": "853530",
+            "description": ("Isolating switches and make-and-break switches."),
+            "level": 6,
+            "parent_code": "8535",
+        },
+        {
+            "code": "853540",
+            "description": (
+                "Lightning arresters, voltage limiters and " "surge suppressors."
+            ),
+            "level": 6,
+            "parent_code": "8535",
+        },
+        {
+            "code": "853590",
+            "description": "Other apparatus.",
+            "level": 6,
+            "parent_code": "8535",
+        },
+        # ==================================================
+        # 85.36 - LV switching / protecting equipment
+        # ==================================================
+        {
+            "code": "8536",
+            "description": (
+                "Electrical apparatus for switching or protecting "
+                "electrical circuits, or for making connections to "
+                "or in electrical circuits, for a voltage not exceeding "
+                "1,000 volts."
+            ),
+            "level": 4,
+            "parent_code": "85",
+        },
+        {
+            "code": "85361",
+            "description": "Fuses.",
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85362",
+            "description": "Automatic circuit breakers.",
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85363",
+            "description": ("Other apparatus for protecting electrical circuits."),
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85364",
+            "description": "Relays.",
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85365",
+            "description": "Other switches.",
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85366",
+            "description": "Lamp-holders, plugs and sockets.",
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85367",
+            "description": (
+                "Connectors for optical fibres, optical fibre " "bundles or cables."
+            ),
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "85369",
+            "description": "Other apparatus.",
+            "level": 5,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853610",
+            "description": "Fuses.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853620",
+            "description": "Automatic circuit breakers.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853630",
+            "description": ("Other apparatus for protecting electrical circuits."),
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853641",
+            "description": ("Relays for a voltage not exceeding 60 V."),
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853649",
+            "description": "Other relays.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853650",
+            "description": "Other switches.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853661",
+            "description": "Lamp-holders.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853669",
+            "description": "Other plugs and sockets.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853670",
+            "description": (
+                "Connectors for optical fibres, optical fibre " "bundles or cables."
+            ),
+            "level": 6,
+            "parent_code": "8536",
+        },
+        {
+            "code": "853690",
+            "description": "Other apparatus.",
+            "level": 6,
+            "parent_code": "8536",
+        },
+        # ==================================================
+        # 85.37 - Control / distribution panels
+        # ==================================================
         {
             "code": "8537",
             "description": (
-                "Boards, panels, consoles, desks, cabinets "
-                "and other bases, equipped with two or more "
-                "apparatus of heading 85.35 or 85.36, for "
-                "electric control or the distribution of "
-                "electricity, including those incorporating "
-                "instruments or apparatus of Chapter 90, "
-                "and numerical control apparatus, other "
-                "than switching apparatus of heading 85.17."
+                "Boards, panels, consoles, desks, cabinets and "
+                "other bases, equipped with two or more apparatus "
+                "of heading 85.35 or 85.36, for electric control "
+                "or the distribution of electricity."
             ),
             "level": 4,
             "parent_code": "85",
         },
         {
             "code": "85371",
-            "description": ("For a voltage not exceeding 1,000 V"),
+            "description": "For a voltage not exceeding 1,000 V",
+            "level": 5,
+            "parent_code": "8537",
+        },
+        {
+            "code": "85372",
+            "description": "For a voltage exceeding 1,000 V",
             "level": 5,
             "parent_code": "8537",
         },
         {
             "code": "853710",
-            "description": ("For a voltage not exceeding 1,000 V"),
+            "description": "For a voltage not exceeding 1,000 V",
             "level": 6,
             "parent_code": "85371",
         },
         {
-            "code": "85372",
-            "description": ("For a voltage exceeding 1,000 V"),
-            "level": 5,
-            "parent_code": "8537",
-        },
-        {
             "code": "853720",
-            "description": ("For a voltage exceeding 1,000 V"),
+            "description": "For a voltage exceeding 1,000 V",
             "level": 6,
             "parent_code": "85372",
         },
@@ -176,95 +535,372 @@ def seed_hs_codes(db, hs_version):
         )
 
         if existing is None:
-            parent = (
-                code_objects.get(data["parent_code"]) if data["parent_code"] else None
-            )
-
-            if parent is None and data["parent_code"]:
-                parent = db.scalar(
-                    select(HSCode).where(
-                        HSCode.hs_version_id == hs_version.id,
-                        HSCode.code == data["parent_code"],
-                    )
-                )
-
-            existing = HSCode(
-                hs_version_id=hs_version.id,
+            code_objects[data["code"]] = HSCode(
                 code=data["code"],
                 description=data["description"],
                 level=data["level"],
-                parent_id=parent.id if parent else None,
+                hs_version_id=hs_version.id,
+                active=True,
             )
 
-            db.add(existing)
-            db.flush()
+            db.add(code_objects[data["code"]])
 
-        code_objects[data["code"]] = existing
+        else:
+            existing.description = data["description"]
+            existing.level = data["level"]
+            existing.active = True
+
+            code_objects[data["code"]] = existing
+
+    db.flush()
+
+    # --------------------------------------------------
+    # Resolve parent relationships
+    # --------------------------------------------------
+
+    for data in codes:
+        parent_code = data["parent_code"]
+
+        if parent_code is None:
+            continue
+
+        current = code_objects[data["code"]]
+        parent = code_objects.get(parent_code)
+
+        if parent is None:
+            raise ValueError(
+                f"Parent HS code {parent_code} "
+                f"required by {data['code']} "
+                f"was not seeded."
+            )
+
+        current.parent_id = parent.id
+
+    db.flush()
 
     return code_objects
 
 
 def seed_products(db, hs_codes):
-    product = db.scalar(
-        select(Product).where(Product.name == "Electrical Control Panels")
-    )
+    """
+    Seed the electrical-equipment product catalog.
 
-    if product is None:
-        product = Product(
-            name="Electrical Control Panels",
-            description=("Electrical control and distribution " "panel assemblies."),
-            category="Electrical Equipment",
-        )
+    Product
+        ↓
+    ProductAlias
+        ↓
+    ProductHSCode
+        ↓
+    HSCode
+    """
 
-        db.add(product)
-        db.flush()
-
-    aliases = [
-        "electrical panels",
-        "control panels",
-        "distribution panels",
+    products = [
+        {
+            "name": "Electrical Control Panels",
+            "description": ("Electrical control and distribution panel assemblies."),
+            "category": "Control & Protection",
+            "aliases": [
+                "electrical panels",
+                "control panels",
+                "electrical control panels",
+                "distribution panels",
+            ],
+            "hs_mappings": [
+                {
+                    "code": "853710",
+                    "mapping_type": "candidate",
+                    "confidence": 0.95,
+                },
+            ],
+        },
+        {
+            "name": "HV Power Transformers",
+            "description": (
+                "High-voltage power transformers used in electrical "
+                "transmission and high-voltage power systems."
+            ),
+            "category": "Transformers",
+            "aliases": [
+                "HV transformers",
+                "HV power transformers",
+                "high voltage transformers",
+                "high voltage power transformers",
+                "power transformers",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "MV Power Transformers",
+            "description": (
+                "Medium-voltage power transformers used in electrical "
+                "distribution and industrial power systems."
+            ),
+            "category": "Transformers",
+            "aliases": [
+                "MV transformers",
+                "MV power transformers",
+                "medium voltage transformers",
+                "medium voltage power transformers",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Distribution Transformers",
+            "description": (
+                "Transformers used for electrical power distribution "
+                "between distribution networks and consumers."
+            ),
+            "category": "Transformers",
+            "aliases": [
+                "distribution transformers",
+                "distribution transformer",
+                "DT transformers",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "LV Switchgear",
+            "description": (
+                "Low-voltage switchgear and associated equipment "
+                "for electrical control, isolation and distribution."
+            ),
+            "category": "Switchgear",
+            "aliases": [
+                "LV switchgear",
+                "low voltage switchgear",
+                "low-voltage switchgear",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "MV Switchgear",
+            "description": (
+                "Medium-voltage switchgear used for electrical "
+                "distribution and industrial power systems."
+            ),
+            "category": "Switchgear",
+            "aliases": [
+                "MV switchgear",
+                "medium voltage switchgear",
+                "medium-voltage switchgear",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "HV Switchgear",
+            "description": (
+                "High-voltage switchgear used for transmission "
+                "and high-voltage electrical systems."
+            ),
+            "category": "Switchgear",
+            "aliases": [
+                "HV switchgear",
+                "high voltage switchgear",
+                "high-voltage switchgear",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Protection Panels",
+            "description": (
+                "Electrical protection panels containing protection "
+                "and associated control equipment."
+            ),
+            "category": "Control & Protection",
+            "aliases": [
+                "protection panels",
+                "electrical protection panels",
+                "protection relay panels",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Relay Panels",
+            "description": (
+                "Panels containing protection, monitoring and "
+                "control relays for electrical systems."
+            ),
+            "category": "Control & Protection",
+            "aliases": [
+                "relay panels",
+                "protection relay panels",
+                "electrical relay panels",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Bus Ducts",
+            "description": (
+                "Bus duct and busway systems used for electrical " "power distribution."
+            ),
+            "category": "Busbar / Distribution",
+            "aliases": [
+                "bus ducts",
+                "bus duct",
+                "busways",
+                "busway systems",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Busbar Systems",
+            "description": (
+                "Busbar systems used for electrical power "
+                "distribution and connection."
+            ),
+            "category": "Busbar / Distribution",
+            "aliases": [
+                "busbar systems",
+                "busbar system",
+                "bus bars",
+                "busbars",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Electric Motors",
+            "description": (
+                "Electric motors used in industrial, commercial "
+                "and electrical equipment applications."
+            ),
+            "category": "Other Electrical Equipment",
+            "aliases": [
+                "electric motors",
+                "electrical motors",
+                "AC motors",
+                "DC motors",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Generators",
+            "description": (
+                "Electrical generators and generating equipment "
+                "used to produce electrical power."
+            ),
+            "category": "Other Electrical Equipment",
+            "aliases": [
+                "generators",
+                "electric generators",
+                "electrical generators",
+                "generator sets",
+                "gensets",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "UPS Systems",
+            "description": (
+                "Uninterruptible power supply systems used to "
+                "provide conditioned and backup electrical power."
+            ),
+            "category": "Other Electrical Equipment",
+            "aliases": [
+                "UPS",
+                "UPS systems",
+                "uninterruptible power supplies",
+                "uninterruptible power supply",
+            ],
+            "hs_mappings": [],
+        },
+        {
+            "name": "Power Distribution Equipment",
+            "description": (
+                "Electrical equipment used for power distribution "
+                "within electrical networks and facilities."
+            ),
+            "category": "Other Electrical Equipment",
+            "aliases": [
+                "power distribution equipment",
+                "electrical distribution equipment",
+                "power distribution systems",
+            ],
+            "hs_mappings": [],
+        },
     ]
 
-    for alias in aliases:
-        existing = db.scalar(
-            select(ProductAlias).where(
-                ProductAlias.product_id == product.id,
-                ProductAlias.alias == alias,
-            )
-        )
+    for data in products:
 
-        if existing is None:
-            db.add(
-                ProductAlias(
-                    product_id=product.id,
-                    alias=alias,
-                    language="en",
-                    source="Development seed data",
-                    confidence=1.0,
+        # --------------------------------------------------
+        # Product
+        # --------------------------------------------------
+
+        product = db.scalar(select(Product).where(Product.name == data["name"]))
+
+        if product is None:
+            product = Product(
+                name=data["name"],
+                description=data["description"],
+                category=data["category"],
+                active=True,
+            )
+
+            db.add(product)
+            db.flush()
+
+        else:
+            product.description = data["description"]
+            product.category = data["category"]
+            product.active = True
+
+        # --------------------------------------------------
+        # Product aliases
+        # --------------------------------------------------
+
+        for alias in data["aliases"]:
+
+            existing_alias = db.scalar(
+                select(ProductAlias).where(
+                    ProductAlias.product_id == product.id,
+                    ProductAlias.alias == alias,
                 )
             )
 
-    hs_code = hs_codes["853710"]
+            if existing_alias is None:
+                db.add(
+                    ProductAlias(
+                        product_id=product.id,
+                        alias=alias,
+                        language="en",
+                        source="Development seed data",
+                        confidence=1.0,
+                    )
+                )
 
-    mapping = db.scalar(
-        select(ProductHSCode).where(
-            ProductHSCode.product_id == product.id,
-            ProductHSCode.hs_code_id == hs_code.id,
-        )
-    )
+        # --------------------------------------------------
+        # Product → HS mappings
+        # --------------------------------------------------
 
-    if mapping is None:
-        db.add(
-            ProductHSCode(
-                product_id=product.id,
-                hs_code_id=hs_code.id,
-                mapping_type="candidate",
-                confidence=0.95,
-                source="Development seed data",
+        for mapping_data in data["hs_mappings"]:
+
+            hs_code = hs_codes.get(mapping_data["code"])
+
+            if hs_code is None:
+                raise ValueError(
+                    f"HS code {mapping_data['code']} "
+                    f"required by product "
+                    f"{data['name']} was not seeded."
+                )
+
+            existing_mapping = db.scalar(
+                select(ProductHSCode).where(
+                    ProductHSCode.product_id == product.id,
+                    ProductHSCode.hs_code_id == hs_code.id,
+                )
             )
-        )
 
-    db.flush()
+            if existing_mapping is None:
+                db.add(
+                    ProductHSCode(
+                        product_id=product.id,
+                        hs_code_id=hs_code.id,
+                        mapping_type=mapping_data["mapping_type"],
+                        confidence=mapping_data["confidence"],
+                        source="Development seed data",
+                    )
+                )
+
+        db.flush()
 
 
 def seed_trade_data(
@@ -278,6 +914,9 @@ def seed_trade_data(
     uae = countries["ARE"]
     germany = countries["DEU"]
     usa = countries["USA"]
+
+    # Existing synthetic trade dataset remains mapped
+    # to Electrical Control Panels / HS 853710.
 
     hs_853710 = hs_codes["853710"]
 
@@ -437,13 +1076,6 @@ def seed_trade_data(
         },
         # ==================================================
         # India exports - 2025
-        #
-        # Example business question:
-        #
-        # "Who buys electrical panels from India?"
-        #
-        # reporter_country = India
-        # partner_country  = buyer
         # ==================================================
         {
             "reporter_country_id": india.id,
@@ -496,6 +1128,7 @@ def seed_trade_data(
     ]
 
     for data in records:
+
         existing = db.scalar(
             select(TradeData).where(
                 TradeData.reporter_country_id == data["reporter_country_id"],
@@ -529,6 +1162,7 @@ def seed():
     db = SessionLocal()
 
     try:
+
         # --------------------------------------------------
         # 1. Countries
         # --------------------------------------------------
@@ -567,16 +1201,6 @@ def seed():
 
         # --------------------------------------------------
         # 6. Trade data
-        #
-        # This includes:
-        #
-        #   India imports
-        #   Global exports
-        #   India exports
-        #
-        # The India exports allow queries such as:
-        #
-        # "Who buys electrical panels from India?"
         # --------------------------------------------------
 
         seed_trade_data(
