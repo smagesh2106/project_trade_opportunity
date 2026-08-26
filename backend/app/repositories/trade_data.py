@@ -353,6 +353,86 @@ class TradeDataRepository:
         ]
 
     # ==================================================
+    # HISTORICAL TRADE ANALYSIS FOR A COUNTRY PAIR
+    # ==================================================
+
+    def find_trade_history_pair(
+        self,
+        hs_code_id: int,
+        trade_flow: str,
+        reporter_country_id: int,
+        partner_country_id: int,
+        period_start: date | None = None,
+        period_end: date | None = None,
+    ) -> list[tuple[int, float]]:
+        """
+        Return yearly trade totals for a specific country pair.
+
+        Example:
+
+            India imports electrical panels from Germany.
+
+            reporter_country = India
+            partner_country  = Germany
+
+        Or:
+
+            India exports electrical panels to Germany.
+
+            reporter_country = India
+            partner_country  = Germany
+        """
+
+        statement = select(
+            func.extract(
+                "year",
+                TradeData.period_start,
+            ).label("trade_year"),
+            func.sum(TradeData.trade_value_usd).label("total_trade_value_usd"),
+        ).where(
+            TradeData.hs_code_id == hs_code_id,
+            TradeData.trade_flow == trade_flow,
+            TradeData.reporter_country_id == reporter_country_id,
+            TradeData.partner_country_id == partner_country_id,
+        )
+
+        # --------------------------------------------------
+        # Optional time filters
+        # --------------------------------------------------
+
+        if period_start is not None:
+            statement = statement.where(TradeData.period_start >= period_start)
+
+        if period_end is not None:
+            statement = statement.where(TradeData.period_start <= period_end)
+
+        # --------------------------------------------------
+        # Group by year
+        # --------------------------------------------------
+
+        statement = statement.group_by(
+            func.extract(
+                "year",
+                TradeData.period_start,
+            )
+        ).order_by(
+            func.extract(
+                "year",
+                TradeData.period_start,
+            )
+        )
+
+        rows = self.db.execute(statement).all()
+
+        return [
+            (
+                int(trade_year),
+                float(total_trade_value_usd),
+            )
+            for trade_year, total_trade_value_usd in rows
+        ]
+
+    # ==================================================
     # PERIOD INFORMATION
     # ==================================================
 

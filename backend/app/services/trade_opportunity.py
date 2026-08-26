@@ -1,13 +1,19 @@
 from datetime import date
 
+from app.analytics.market_share import calculate_market_shares
+from app.analytics.opportunity_score import calculate_opportunity_score
+from app.analytics.trade_trends import calculate_yoy_growth
+
 from app.repositories.country import CountryRepository
 from app.repositories.trade_data import TradeDataRepository
+
 from app.schemas.intelligence import (
     CountryRole,
     CountryScope,
     TradeIntent,
     TradeQuery,
 )
+
 from app.schemas.trade_opportunity import (
     TradeOpportunity,
     TradeOpportunityResponse,
@@ -22,6 +28,10 @@ class TradeOpportunityService:
     ):
         self.trade_repository = trade_repository
         self.country_repository = country_repository
+
+    # ==================================================
+    # MAIN ANALYSIS
+    # ==================================================
 
     def analyze(
         self,
@@ -59,25 +69,19 @@ class TradeOpportunityService:
         # First version:
         #
         # Use the first resolved HS code.
-        #
-        # Later we can support multiple HS mappings and
-        # aggregate the results.
         # --------------------------------------------------
 
         hs_code = trade_query.hs_codes[0]
 
         # --------------------------------------------------
-        # First version uses the 2025 analysis period.
-        #
-        # Later this will come from TradeQuery when we add
-        # natural-language period extraction.
+        # Current analysis period
         # --------------------------------------------------
 
         period_start = date(2025, 1, 1)
         period_end = date(2025, 12, 31)
 
         # ==================================================
-        # SUPPLIER SEARCH
+        # TRADE OPPORTUNITY SEARCH
         # ==================================================
 
         if trade_query.intent == TradeIntent.SUPPLIER_SEARCH:
@@ -88,10 +92,6 @@ class TradeOpportunityService:
                 period_start=period_start,
                 period_end=period_end,
             )
-
-        # ==================================================
-        # BUYER SEARCH
-        # ==================================================
 
         elif trade_query.intent == TradeIntent.BUYER_SEARCH:
 
@@ -105,20 +105,137 @@ class TradeOpportunityService:
         else:
             raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
 
+        # --------------------------------------------------
+        # Empty results
+        # --------------------------------------------------
+
+        if not results:
+            return TradeOpportunityResponse(
+                hs_code=hs_code.code,
+                hs_description=hs_code.description,
+                period_start=period_start,
+                period_end=period_end,
+                opportunities=[],
+            )
+
         # ==================================================
-        # Convert repository results into business results
+        # MARKET SHARE
+        # ==================================================
+
+        market_shares = calculate_market_shares(results)
+
+        market_share_by_country = {
+            item.country_id: item.market_share_percent for item in market_shares
+        }
+
+        # --------------------------------------------------
+        # Supplier concentration
+        #
+        # First-version concentration metric:
+        #
+        # Sum of the two largest market shares.
+        # --------------------------------------------------
+
+        sorted_market_shares = sorted(
+            (float(item.market_share_percent) for item in market_shares),
+            reverse=True,
+        )
+
+        concentration_percent = sum(sorted_market_shares[:2])
+
+        if sorted_market_shares:
+            concentration_min_percent = min(sorted_market_shares)
+            concentration_max_percent = max(sorted_market_shares)
+        else:
+            concentration_min_percent = 0.0
+            concentration_max_percent = 0.0
+
+        # ==================================================
+        # YOY GROWTH
+        # ==================================================
+
+        yoy_growth_by_country: dict[int, float | None] = {}
+
+        for country_id, _trade_value in results:
+
+            history = self._get_country_trade_history(
+                trade_query=trade_query,
+                hs_code_id=hs_code.id,
+                country_id=country_id,
+                period_start=None,
+                period_end=period_end,
+            )
+
+            trend = calculate_yoy_growth(history)
+
+            if trend is None:
+                yoy_growth_by_country[country_id] = None
+            else:
+                yoy_growth_by_country[country_id] = float(trend.yoy_growth_percent)
+
+        # --------------------------------------------------
+        # Opportunity scoring requires comparable YoY
+        # values.
+        #
+        # Countries without sufficient historical data are
+        # temporarily excluded from the score comparison.
+        # --------------------------------------------------
+
+        available_yoy_values = [
+            value for value in yoy_growth_by_country.values() if value is not None
+        ]
+
+        # If no historical values exist, use 0.0 as a
+        # neutral growth value for the scoring calculation.
+        if not available_yoy_values:
+            available_yoy_values = [0.0]
+
+        # ==================================================
+        # OPPORTUNITY RESULTS
         # ==================================================
 
         opportunities: list[TradeOpportunity] = []
+
+        all_trade_values = [float(trade_value) for _, trade_value in results]
+
+        all_market_share_values = [
+            float(item.market_share_percent) for item in market_shares
+        ]
 
         for rank, (country_id, trade_value) in enumerate(
             results,
             start=1,
         ):
+
             country = self.country_repository.get_by_id(country_id)
 
             if country is None:
                 continue
+
+            market_share_percent = float(market_share_by_country[country_id])
+
+            yoy_growth_percent = yoy_growth_by_country[country_id]
+
+            # --------------------------------------------------
+            # Use neutral 0% growth when historical data is
+            # unavailable.
+            # --------------------------------------------------
+
+            scoring_yoy_growth = (
+                float(yoy_growth_percent) if yoy_growth_percent is not None else 0.0
+            )
+
+            score = calculate_opportunity_score(
+                trade_value_usd=float(trade_value),
+                all_trade_values_usd=all_trade_values,
+                yoy_growth_percent=scoring_yoy_growth,
+                all_yoy_growth_percent=available_yoy_values,
+                market_share_percent=market_share_percent,
+                all_market_share_percent=all_market_share_values,
+                concentration_percent=concentration_percent,
+                concentration_min_percent=concentration_min_percent,
+                concentration_max_percent=concentration_max_percent,
+            )
 
             opportunities.append(
                 TradeOpportunity(
@@ -128,6 +245,19 @@ class TradeOpportunityService:
                     iso2=country.iso2,
                     iso3=country.iso3,
                     trade_value_usd=float(trade_value),
+                    market_share_percent=round(
+                        market_share_percent,
+                        2,
+                    ),
+                    yoy_growth_percent=(
+                        round(
+                            float(yoy_growth_percent),
+                            2,
+                        )
+                        if yoy_growth_percent is not None
+                        else None
+                    ),
+                    opportunity_score=score.total_score,
                     period_start=period_start,
                     period_end=period_end,
                 )
@@ -141,9 +271,9 @@ class TradeOpportunityService:
             opportunities=opportunities,
         )
 
-    # ======================================================
+    # ==================================================
     # SUPPLIER SEARCH
-    # ======================================================
+    # ==================================================
 
     def _analyze_supplier_search(
         self,
@@ -164,16 +294,6 @@ class TradeOpportunityService:
 
             # --------------------------------------------------
             # LOCATION
-            #
-            # Example:
-            #
-            # "Find suppliers of electrical panels in India"
-            #
-            # This means suppliers located in India.
-            #
-            # Our current trade_data model contains
-            # country-to-country trade flows, not supplier
-            # company locations.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.LOCATION:
@@ -187,14 +307,6 @@ class TradeOpportunityService:
 
             # --------------------------------------------------
             # DESTINATION
-            #
-            # Example:
-            #
-            # "Find suppliers of electrical panels to India"
-            #
-            # India = importing/destination country.
-            #
-            # Find countries supplying India.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.DESTINATION:
@@ -208,15 +320,6 @@ class TradeOpportunityService:
 
             # --------------------------------------------------
             # ORIGIN
-            #
-            # Example:
-            #
-            # "Find suppliers of electrical panels from India"
-            #
-            # This describes suppliers originating from India.
-            #
-            # Our current supplier-search semantics do not yet
-            # support this as a separate operation.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.ORIGIN:
@@ -231,12 +334,6 @@ class TradeOpportunityService:
 
         # --------------------------------------------------
         # All countries
-        #
-        # Example:
-        #
-        # "Find suppliers of electrical panels"
-        #
-        # Find countries exporting the product globally.
         # --------------------------------------------------
 
         if trade_query.country_scope == CountryScope.ALL:
@@ -251,9 +348,9 @@ class TradeOpportunityService:
             f"Unsupported country scope: " f"{trade_query.country_scope.value}"
         )
 
-    # ======================================================
+    # ==================================================
     # BUYER SEARCH
-    # ======================================================
+    # ==================================================
 
     def _analyze_buyer_search(
         self,
@@ -274,19 +371,6 @@ class TradeOpportunityService:
 
             # --------------------------------------------------
             # LOCATION
-            #
-            # Example:
-            #
-            # "Who imports electrical panels in India?"
-            #
-            # India = buyer/importer location.
-            #
-            # The current trade data can tell us India's
-            # import activity, but cannot identify individual
-            # importer companies.
-            #
-            # Therefore the result is country-level import
-            # activity.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.LOCATION:
@@ -300,15 +384,6 @@ class TradeOpportunityService:
 
             # --------------------------------------------------
             # DESTINATION
-            #
-            # Example:
-            #
-            # "Who imports electrical panels to India?"
-            #
-            # India = destination/importing country.
-            #
-            # At the country-level data layer this is
-            # equivalent to the specific buyer country.
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.DESTINATION:
@@ -322,21 +397,6 @@ class TradeOpportunityService:
 
             # --------------------------------------------------
             # ORIGIN
-            #
-            # Example:
-            #
-            # "Who buys electrical panels from India?"
-            #
-            # India = origin/exporting country.
-            #
-            # Find the countries importing from India.
-            #
-            # Repository method:
-            #
-            # find_buyer_countries_from_origin()
-            #
-            # reporter_country = India
-            # partner_country  = buyer
             # --------------------------------------------------
 
             if trade_query.country_role == CountryRole.ORIGIN:
@@ -354,12 +414,6 @@ class TradeOpportunityService:
 
         # --------------------------------------------------
         # All countries
-        #
-        # Example:
-        #
-        # "Who imports electrical panels?"
-        #
-        # Find countries importing the product globally.
         # --------------------------------------------------
 
         if trade_query.country_scope == CountryScope.ALL:
@@ -373,3 +427,132 @@ class TradeOpportunityService:
         raise ValueError(
             f"Unsupported country scope: " f"{trade_query.country_scope.value}"
         )
+
+    # ==================================================
+    # HISTORICAL DATA
+    # ==================================================
+
+    def _get_country_trade_history(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        country_id: int,
+        period_start: date | None,
+        period_end: date | None,
+    ) -> list[tuple[int, float]]:
+
+        # ==================================================
+        # SUPPLIER SEARCH
+        # ==================================================
+
+        if trade_query.intent == TradeIntent.SUPPLIER_SEARCH:
+
+            # --------------------------------------------------
+            # Specific destination:
+            #
+            # India imports from Germany
+            #
+            # reporter = India
+            # partner  = Germany
+            # --------------------------------------------------
+
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country_role == CountryRole.DESTINATION
+                and trade_query.country is not None
+            ):
+
+                return self.trade_repository.find_trade_history_pair(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    reporter_country_id=trade_query.country.id,
+                    partner_country_id=country_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            # --------------------------------------------------
+            # Global supplier search:
+            #
+            # exporter = country
+            # --------------------------------------------------
+
+            return self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="export",
+                country_id=country_id,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        # ==================================================
+        # BUYER SEARCH
+        # ==================================================
+
+        if trade_query.intent == TradeIntent.BUYER_SEARCH:
+
+            # --------------------------------------------------
+            # Origin-based buyer search:
+            #
+            # India exports to Germany
+            #
+            # reporter = India
+            # partner  = Germany
+            # --------------------------------------------------
+
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country_role == CountryRole.ORIGIN
+                and trade_query.country is not None
+            ):
+
+                return self.trade_repository.find_trade_history_pair(
+                    hs_code_id=hs_code_id,
+                    trade_flow="export",
+                    reporter_country_id=trade_query.country.id,
+                    partner_country_id=country_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            # --------------------------------------------------
+            # Specific buyer location:
+            #
+            # country imports product
+            # --------------------------------------------------
+
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country_role
+                in (
+                    CountryRole.LOCATION,
+                    CountryRole.DESTINATION,
+                )
+            ):
+
+                return self.trade_repository.find_trade_history(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    country_id=country_id,
+                    country_role="reporter",
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            # --------------------------------------------------
+            # Global buyer search:
+            #
+            # importer = country
+            # --------------------------------------------------
+
+            return self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="import",
+                country_id=country_id,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
