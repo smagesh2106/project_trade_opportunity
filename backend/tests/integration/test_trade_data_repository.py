@@ -79,12 +79,16 @@ def test_trade_data_repository():
 
         # 2025 global exports:
         #
-        # Germany        25.0M
-        # USA            20.0M
-        # UAE            12.0M
-        # Saudi Arabia    7.0M
+        # India           35.0M
+        # Germany         25.0M
+        # USA             20.0M
+        # UAE             12.0M
+        # Saudi Arabia     7.0M
 
         assert len(global_supplier_results) == 5
+
+        assert global_supplier_results[0][0] == 1
+        assert float(global_supplier_results[0][1]) == 35_000_000
 
         assert global_supplier_results[1][0] == 4
         assert float(global_supplier_results[1][1]) == 25_000_000
@@ -179,16 +183,6 @@ def test_trade_data_repository():
                 f"${float(trade_value):,.2f}"
             )
 
-        # --------------------------------------------------
-        # Current synthetic dataset does not yet contain
-        # India export records for this HS code.
-        #
-        # Therefore the expected result is currently [].
-        #
-        # We will add India export seed data in the next
-        # step and then change this assertion.
-        # --------------------------------------------------
-
         assert len(buyer_from_india_results) == 4
 
         assert buyer_from_india_results[0][0] == 4
@@ -203,7 +197,96 @@ def test_trade_data_repository():
         assert buyer_from_india_results[3][0] == 2
         assert float(buyer_from_india_results[3][1]) == 4_000_000
 
-        print("\nIndia-origin buyer search correctly " "returned no records: []")
+        print("\nIndia-origin buyer search correctly " "returned the expected records.")
+
+        # ==================================================
+        # Historical trade history
+        # ==================================================
+
+        india_import_history = repository.find_trade_history(
+            hs_code_id=hs_code_id,
+            trade_flow="import",
+            country_id=1,
+            country_role="reporter",
+            period_start=date(2024, 1, 1),
+            period_end=date(2025, 12, 31),
+        )
+
+        print("\nIndia electrical-panel import history:")
+
+        for year, trade_value in india_import_history:
+            print(f"Year: {year}, " f"Import value: " f"${trade_value:,.2f}")
+
+        # 2024 India imports:
+        #
+        # Germany         9.0M
+        # USA             7.0M
+        # UAE             3.5M
+        # Saudi Arabia    1.8M
+        #
+        # Total = 21.3M
+        #
+        # 2025 India imports:
+        #
+        # Total = 25.6M
+
+        assert india_import_history == [
+            (2024, 21_300_000.0),
+            (2025, 25_600_000.0),
+        ]
+
+        # ==================================================
+        # Historical global exports
+        # ==================================================
+
+        global_export_history = repository.find_trade_history(
+            hs_code_id=hs_code_id,
+            trade_flow="export",
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 12, 31),
+        )
+
+        print("\nGlobal electrical-panel export history:")
+
+        for year, trade_value in global_export_history:
+            print(f"Year: {year}, " f"Export value: " f"${trade_value:,.2f}")
+
+        # 2025 total exports:
+        #
+        # India           35M
+        # Germany         25M
+        # USA             20M
+        # UAE             12M
+        # Saudi Arabia     7M
+        #
+        # Total = 99M
+
+        assert global_export_history == [
+            (2025, 99_000_000.0),
+        ]
+
+        # ==================================================
+        # Historical supplier-country analysis
+        # ==================================================
+
+        germany_to_india_history = repository.find_trade_history(
+            hs_code_id=hs_code_id,
+            trade_flow="import",
+            country_id=4,
+            country_role="partner",
+            period_start=date(2024, 1, 1),
+            period_end=date(2025, 12, 31),
+        )
+
+        print("\nGermany electrical-panel exports to India:")
+
+        for year, trade_value in germany_to_india_history:
+            print(f"Year: {year}, " f"Trade value: " f"${trade_value:,.2f}")
+
+        assert germany_to_india_history == [
+            (2024, 9_000_000.0),
+            (2025, 10_500_000.0),
+        ]
 
         # ==================================================
         # Unknown HS code
