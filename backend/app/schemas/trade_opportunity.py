@@ -1,6 +1,8 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.schemas.trade_insight import TradeInsight
 
 
 class TradeOpportunity(BaseModel):
@@ -29,3 +31,4 @@ class TradeOpportunityResponse(BaseModel):
     period_end: date | None = None
 
     opportunities: list[TradeOpportunity]
+    insights: list[TradeInsight] = Field(default_factory=list)

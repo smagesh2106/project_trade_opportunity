@@ -4,6 +4,7 @@ from app.analytics.market_share import calculate_market_shares
 from app.analytics.market_trends import calculate_market_trend
 from app.analytics.opportunity_score import calculate_opportunity_score
 from app.analytics.trade_trends import calculate_yoy_growth
+from app.analytics.trade_insights import generate_trade_insights
 
 from app.repositories.country import CountryRepository
 from app.repositories.trade_data import TradeDataRepository
@@ -19,6 +20,7 @@ from app.schemas.trade_opportunity import (
     TradeOpportunity,
     TradeOpportunityResponse,
 )
+from app.schemas.trade_insight import TradeInsight as TradeInsightSchema
 
 from app.schemas.trade_trends import (
     MarketTrendPoint,
@@ -158,6 +160,7 @@ class TradeOpportunityService:
                 period_start=period_start,
                 period_end=period_end,
                 opportunities=[],
+                insights=[],
             )
 
         # ==================================================
@@ -305,12 +308,63 @@ class TradeOpportunityService:
                 )
             )
 
+        insight_inputs = [
+            {
+                "country_id": opportunity.country_id,
+                "country_name": opportunity.country_name,
+                "iso2": opportunity.iso2,
+                "iso3": opportunity.iso3,
+                "trade_value_usd": opportunity.trade_value_usd,
+                "market_share_percent": opportunity.market_share_percent,
+                "yoy_growth_percent": opportunity.yoy_growth_percent,
+                "opportunity_score": opportunity.opportunity_score,
+            }
+            for opportunity in opportunities
+        ]
+
+        generated_insights = generate_trade_insights(insight_inputs)
+
+        insights = [
+            TradeInsightSchema(
+                insight_type=insight.insight_type,
+                country_id=insight.country_id,
+                country_name=next(
+                    (
+                        item["country_name"]
+                        for item in insight_inputs
+                        if item["country_id"] == insight.country_id
+                    ),
+                    None,
+                ),
+                iso2=next(
+                    (
+                        item["iso2"]
+                        for item in insight_inputs
+                        if item["country_id"] == insight.country_id
+                    ),
+                    None,
+                ),
+                iso3=next(
+                    (
+                        item["iso3"]
+                        for item in insight_inputs
+                        if item["country_id"] == insight.country_id
+                    ),
+                    None,
+                ),
+                title=insight.title,
+                description=insight.description,
+            )
+            for insight in generated_insights
+        ]
+
         return TradeOpportunityResponse(
             hs_code=hs_code.code,
             hs_description=hs_code.description,
             period_start=period_start,
             period_end=period_end,
             opportunities=opportunities,
+            insights=insights,
         )
 
     # ==================================================
