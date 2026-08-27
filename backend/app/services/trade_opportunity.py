@@ -50,6 +50,8 @@ class TradeOpportunityService:
         if trade_query.intent not in (
             TradeIntent.SUPPLIER_SEARCH,
             TradeIntent.BUYER_SEARCH,
+            TradeIntent.EXPORT_OPPORTUNITY,
+            TradeIntent.IMPORT_OPPORTUNITY,
         ):
             raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
 
@@ -105,6 +107,24 @@ class TradeOpportunityService:
                 period_end=period_end,
             )
 
+        elif trade_query.intent == TradeIntent.EXPORT_OPPORTUNITY:
+
+            results = self._analyze_export_opportunity(
+                trade_query=trade_query,
+                hs_code_id=hs_code.id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        elif trade_query.intent == TradeIntent.IMPORT_OPPORTUNITY:
+
+            results = self._analyze_import_opportunity(
+                trade_query=trade_query,
+                hs_code_id=hs_code.id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
         else:
             raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
 
@@ -132,7 +152,7 @@ class TradeOpportunityService:
         }
 
         # --------------------------------------------------
-        # Supplier concentration
+        # Trade concentration
         #
         # First-version concentration metric:
         #
@@ -432,6 +452,85 @@ class TradeOpportunityService:
         )
 
     # ==================================================
+    # EXPORT OPPORTUNITY
+    # ==================================================
+
+    def _analyze_export_opportunity(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[tuple[int, float]]:
+
+        if trade_query.country_scope != CountryScope.SPECIFIC:
+            raise ValueError(
+                "Export opportunity requires a specific " "origin country."
+            )
+
+        if trade_query.country is None:
+            raise ValueError("Country is required for export opportunity.")
+
+        if trade_query.country_role != CountryRole.ORIGIN:
+            raise ValueError(
+                "Export opportunity requires the country " "to be the origin."
+            )
+
+        return self.trade_repository.find_buyer_countries_from_origin(
+            hs_code_id=hs_code_id,
+            origin_country_id=trade_query.country.id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+    # ==================================================
+    # IMPORT OPPORTUNITY
+    # ==================================================
+
+    def _analyze_import_opportunity(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[tuple[int, float]]:
+
+        # --------------------------------------------------
+        # Import opportunity answers:
+        #
+        # "Which countries should I source this product
+        #  from for the destination country?"
+        #
+        # Example:
+        #
+        # "Which countries should India source electrical
+        #  panels from?"
+        #
+        # destination = India
+        # partner      = supplier
+        # --------------------------------------------------
+
+        if trade_query.country_scope != CountryScope.SPECIFIC:
+            raise ValueError(
+                "Import opportunity requires a specific " "destination country."
+            )
+
+        if trade_query.country is None:
+            raise ValueError("Country is required for import opportunity.")
+
+        if trade_query.country_role != CountryRole.DESTINATION:
+            raise ValueError(
+                "Import opportunity requires the country " "to be the destination."
+            )
+
+        return self.trade_repository.find_supplier_countries(
+            hs_code_id=hs_code_id,
+            target_country_id=trade_query.country.id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+    # ==================================================
     # HISTORICAL DATA
     # ==================================================
 
@@ -450,21 +549,11 @@ class TradeOpportunityService:
 
         if trade_query.intent == TradeIntent.SUPPLIER_SEARCH:
 
-            # --------------------------------------------------
-            # Specific destination:
-            #
-            # India imports from Germany
-            #
-            # reporter = India
-            # partner  = Germany
-            # --------------------------------------------------
-
             if (
                 trade_query.country_scope == CountryScope.SPECIFIC
-                and trade_query.country_role == CountryRole.DESTINATION
                 and trade_query.country is not None
+                and trade_query.country_role == CountryRole.DESTINATION
             ):
-
                 return self.trade_repository.find_trade_history_pair(
                     hs_code_id=hs_code_id,
                     trade_flow="import",
@@ -473,12 +562,6 @@ class TradeOpportunityService:
                     period_start=period_start,
                     period_end=period_end,
                 )
-
-            # --------------------------------------------------
-            # Global supplier search:
-            #
-            # exporter = country
-            # --------------------------------------------------
 
             return self.trade_repository.find_trade_history(
                 hs_code_id=hs_code_id,
@@ -495,21 +578,11 @@ class TradeOpportunityService:
 
         if trade_query.intent == TradeIntent.BUYER_SEARCH:
 
-            # --------------------------------------------------
-            # Origin-based buyer search:
-            #
-            # India exports to Germany
-            #
-            # reporter = India
-            # partner  = Germany
-            # --------------------------------------------------
-
             if (
                 trade_query.country_scope == CountryScope.SPECIFIC
-                and trade_query.country_role == CountryRole.ORIGIN
                 and trade_query.country is not None
+                and trade_query.country_role == CountryRole.ORIGIN
             ):
-
                 return self.trade_repository.find_trade_history_pair(
                     hs_code_id=hs_code_id,
                     trade_flow="export",
@@ -519,35 +592,63 @@ class TradeOpportunityService:
                     period_end=period_end,
                 )
 
-            # --------------------------------------------------
-            # Specific buyer location:
-            #
-            # country imports product
-            # --------------------------------------------------
+            return self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="import",
+                country_id=country_id,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        # ==================================================
+        # EXPORT OPPORTUNITY
+        # ==================================================
+
+        if trade_query.intent == TradeIntent.EXPORT_OPPORTUNITY:
 
             if (
                 trade_query.country_scope == CountryScope.SPECIFIC
-                and trade_query.country_role
-                in (
-                    CountryRole.LOCATION,
-                    CountryRole.DESTINATION,
-                )
+                and trade_query.country is not None
+                and trade_query.country_role == CountryRole.ORIGIN
             ):
-
-                return self.trade_repository.find_trade_history(
+                return self.trade_repository.find_trade_history_pair(
                     hs_code_id=hs_code_id,
-                    trade_flow="import",
-                    country_id=country_id,
-                    country_role="reporter",
+                    trade_flow="export",
+                    reporter_country_id=trade_query.country.id,
+                    partner_country_id=country_id,
                     period_start=period_start,
                     period_end=period_end,
                 )
 
-            # --------------------------------------------------
-            # Global buyer search:
-            #
-            # importer = country
-            # --------------------------------------------------
+            return self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="export",
+                country_id=country_id,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        # ==================================================
+        # IMPORT OPPORTUNITY
+        # ==================================================
+
+        if trade_query.intent == TradeIntent.IMPORT_OPPORTUNITY:
+
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country is not None
+                and trade_query.country_role == CountryRole.DESTINATION
+            ):
+                return self.trade_repository.find_trade_history_pair(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    reporter_country_id=trade_query.country.id,
+                    partner_country_id=country_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
 
             return self.trade_repository.find_trade_history(
                 hs_code_id=hs_code_id,
@@ -570,16 +671,13 @@ class TradeOpportunityService:
         period_end: date | None,
     ) -> tuple[date, date]:
 
-        if period_start is None and period_end is None:
-            return DEFAULT_PERIOD_START, DEFAULT_PERIOD_END
-
         if period_start is None:
-            period_start = date(period_end.year, 1, 1)
+            period_start = DEFAULT_PERIOD_START
 
         if period_end is None:
-            period_end = date(period_start.year, 12, 31)
+            period_end = DEFAULT_PERIOD_END
 
-        if period_end < period_start:
-            raise ValueError("period_end must be on or after period_start.")
+        if period_start > period_end:
+            raise ValueError("period_start cannot be after period_end.")
 
         return period_start, period_end
