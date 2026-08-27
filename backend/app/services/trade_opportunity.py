@@ -1,6 +1,7 @@
 from datetime import date
 
 from app.analytics.market_share import calculate_market_shares
+from app.analytics.market_trends import calculate_market_trend
 from app.analytics.opportunity_score import calculate_opportunity_score
 from app.analytics.trade_trends import calculate_yoy_growth
 
@@ -17,6 +18,11 @@ from app.schemas.intelligence import (
 from app.schemas.trade_opportunity import (
     TradeOpportunity,
     TradeOpportunityResponse,
+)
+
+from app.schemas.trade_trends import (
+    MarketTrendPoint,
+    MarketTrendResponse,
 )
 
 DEFAULT_PERIOD_START = date(2025, 1, 1)
@@ -41,7 +47,7 @@ class TradeOpportunityService:
         trade_query: TradeQuery,
         period_start: date | None = None,
         period_end: date | None = None,
-    ) -> TradeOpportunityResponse:
+    ) -> TradeOpportunityResponse | MarketTrendResponse:
 
         # --------------------------------------------------
         # Validate intent
@@ -52,6 +58,7 @@ class TradeOpportunityService:
             TradeIntent.BUYER_SEARCH,
             TradeIntent.EXPORT_OPPORTUNITY,
             TradeIntent.IMPORT_OPPORTUNITY,
+            TradeIntent.MARKET_ANALYSIS,
         ):
             raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
 
@@ -84,6 +91,18 @@ class TradeOpportunityService:
             period_start=period_start,
             period_end=period_end,
         )
+
+        # ==================================================
+        # MARKET ANALYSIS
+        # ==================================================
+
+        if trade_query.intent == TradeIntent.MARKET_ANALYSIS:
+            return self._analyze_market(
+                trade_query=trade_query,
+                hs_code_id=hs_code.id,
+                period_start=period_start,
+                period_end=period_end,
+            )
 
         # ==================================================
         # TRADE OPPORTUNITY SEARCH
@@ -295,6 +314,102 @@ class TradeOpportunityService:
         )
 
     # ==================================================
+    # MARKET ANALYSIS
+    # ==================================================
+
+    def _analyze_market(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> MarketTrendResponse:
+
+        # --------------------------------------------------
+        # Market analysis currently requires a specific
+        # country.
+        # --------------------------------------------------
+
+        if trade_query.country_scope != CountryScope.SPECIFIC:
+            raise ValueError("Market analysis currently requires a specific country.")
+
+        if trade_query.country is None:
+            raise ValueError("Country is required for market analysis.")
+
+        # --------------------------------------------------
+        # Determine the trade flow.
+        #
+        # destination:
+        #     country is the importing/reporting country
+        #
+        # origin:
+        #     country is the exporting/reporting country
+        # --------------------------------------------------
+
+        if trade_query.country_role == CountryRole.DESTINATION:
+            trade_flow = "import"
+
+        elif trade_query.country_role == CountryRole.ORIGIN:
+            trade_flow = "export"
+
+        else:
+            raise ValueError(
+                "Market analysis requires the country role "
+                "to be destination or origin."
+            )
+
+        history = self.trade_repository.find_trade_history(
+            hs_code_id=hs_code_id,
+            trade_flow=trade_flow,
+            country_id=trade_query.country.id,
+            country_role="reporter",
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+        if not history:
+            return MarketTrendResponse(
+                hs_code=trade_query.hs_codes[0].code,
+                hs_description=trade_query.hs_codes[0].description,
+                country_id=trade_query.country.id,
+                country_name=trade_query.country.name,
+                iso2=trade_query.country.iso2,
+                iso3=trade_query.country.iso3,
+                trade_flow=trade_flow,
+                history=[],
+                yoy_growth_percent=None,
+            )
+
+        trend = calculate_market_trend(history)
+
+        history_points = [
+            MarketTrendPoint(
+                year=year,
+                trade_value_usd=trade_value,
+            )
+            for year, trade_value in trend.trade_history
+        ]
+
+        return MarketTrendResponse(
+            hs_code=trade_query.hs_codes[0].code,
+            hs_description=trade_query.hs_codes[0].description,
+            country_id=trade_query.country.id,
+            country_name=trade_query.country.name,
+            iso2=trade_query.country.iso2,
+            iso3=trade_query.country.iso3,
+            trade_flow=trade_flow,
+            history=history_points,
+            yoy_growth_percent=(
+                round(
+                    float(trend.yoy_growth.yoy_growth_percent),
+                    2,
+                )
+                if trend.yoy_growth is not None
+                else None
+            ),
+        )
+
+    # ==================================================
     # SUPPLIER SEARCH
     # ==================================================
 
@@ -464,16 +579,14 @@ class TradeOpportunityService:
     ) -> list[tuple[int, float]]:
 
         if trade_query.country_scope != CountryScope.SPECIFIC:
-            raise ValueError(
-                "Export opportunity requires a specific " "origin country."
-            )
+            raise ValueError("Export opportunity requires a specific origin country.")
 
         if trade_query.country is None:
             raise ValueError("Country is required for export opportunity.")
 
         if trade_query.country_role != CountryRole.ORIGIN:
             raise ValueError(
-                "Export opportunity requires the country " "to be the origin."
+                "Export opportunity requires the country to be the origin."
             )
 
         return self.trade_repository.find_buyer_countries_from_origin(
@@ -512,7 +625,7 @@ class TradeOpportunityService:
 
         if trade_query.country_scope != CountryScope.SPECIFIC:
             raise ValueError(
-                "Import opportunity requires a specific " "destination country."
+                "Import opportunity requires a specific destination country."
             )
 
         if trade_query.country is None:

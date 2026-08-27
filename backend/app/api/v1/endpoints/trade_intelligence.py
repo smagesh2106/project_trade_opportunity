@@ -16,6 +16,7 @@ from app.repositories.product import ProductRepository
 from app.repositories.trade_data import TradeDataRepository
 
 from app.schemas.trade_opportunity import TradeOpportunityResponse
+from app.schemas.trade_trends import MarketTrendResponse
 
 from app.services.openai_service import OpenAIService
 from app.services.trade_intelligence import TradeIntelligenceService
@@ -86,7 +87,7 @@ def get_trade_intelligence_service(
 
 @router.post(
     "/analyze",
-    response_model=TradeOpportunityResponse,
+    response_model=TradeOpportunityResponse | MarketTrendResponse,
 )
 def analyze_trade(
     request: TradeAnalysisRequest,
