@@ -35,5 +35,4 @@ class TradeOpportunityResponse(BaseModel):
     opportunities: list[TradeOpportunity]
     insights: list[TradeInsight] = Field(default_factory=list)
     recommendations: list[TradeRecommendation] = Field(default_factory=list)
-
     comparison: TradeComparisonResponse | None = None

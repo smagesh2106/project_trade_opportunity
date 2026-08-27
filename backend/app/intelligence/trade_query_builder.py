@@ -3,6 +3,7 @@ from app.intelligence.hs_resolver import HSResolver
 from app.intelligence.product_matcher import ProductMatcher
 from app.schemas.intelligence import (
     CountryScope,
+    CountryRole,
     QueryUnderstanding,
     ResolvedProduct,
     TradeQuery,
@@ -46,12 +47,23 @@ class TradeQueryBuilder:
         # --------------------------------------------------
 
         resolved_country = None
+        resolved_comparison_countries = []
 
         if understanding.country_scope == CountryScope.SPECIFIC:
-            country_match = self.country_matcher.match(understanding.country_text)
+            if understanding.country_text:
+                country_match = self.country_matcher.match(understanding.country_text)
+
+                if country_match is not None:
+                    resolved_country = country_match.country
+
+        for country_text in understanding.comparison_country_texts:
+            if not country_text:
+                continue
+
+            country_match = self.country_matcher.match(country_text)
 
             if country_match is not None:
-                resolved_country = country_match.country
+                resolved_comparison_countries.append(country_match.country)
 
         # --------------------------------------------------
         # 3. Resolve HS codes
@@ -70,5 +82,6 @@ class TradeQueryBuilder:
             country_scope=understanding.country_scope,
             country_role=understanding.country_role,
             country=resolved_country,
+            comparison_countries=resolved_comparison_countries,
             hs_codes=hs_codes,
         )

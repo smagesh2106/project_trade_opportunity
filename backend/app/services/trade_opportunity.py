@@ -76,6 +76,13 @@ class TradeOpportunityService:
                 period_end=period_end,
             )
 
+        if trade_query.intent == TradeIntent.COMPARISON:
+            return self._analyze_comparison(
+                trade_query=trade_query,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
         # --------------------------------------------------
         # Validate supported opportunity intents
         # --------------------------------------------------
@@ -164,8 +171,7 @@ class TradeOpportunityService:
         # opportunity inputs rather than assuming they exist on the
         # analytics insight object.
         opportunity_by_country_id = {
-            item["country_id"]: item
-            for item in insight_inputs
+            item["country_id"]: item for item in insight_inputs
         }
 
         insights = []
@@ -247,6 +253,119 @@ class TradeOpportunityService:
             insights=insights,
             recommendations=recommendations,
             comparison=None,
+        )
+
+    def _analyze_comparison(
+        self,
+        trade_query: TradeQuery,
+        period_start: date,
+        period_end: date,
+    ) -> TradeOpportunityResponse:
+        """
+        Compare two explicitly named countries using supplier-to-destination
+        trade data and the existing deterministic opportunity analytics.
+        """
+
+        if not trade_query.hs_codes:
+            raise ValueError("Comparison requires at least one resolved HS code.")
+
+        if trade_query.country is None:
+            raise ValueError("Comparison requires a destination country.")
+
+        if trade_query.country_role != CountryRole.DESTINATION:
+            raise ValueError(
+                "Supplier comparison currently requires the destination country "
+                "to be specified."
+            )
+
+        if len(trade_query.comparison_countries) != 2:
+            raise ValueError(
+                "Comparison currently requires exactly two comparison countries."
+            )
+
+        comparison_ids = {country.id for country in trade_query.comparison_countries}
+
+        if len(comparison_ids) != 2:
+            raise ValueError("Comparison countries must be distinct.")
+
+        hs_code = trade_query.hs_codes[0]
+
+        trade_results = self.trade_repository.find_supplier_countries(
+            hs_code_id=hs_code.id,
+            target_country_id=trade_query.country.id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+        available_ids = {country_id for country_id, _ in trade_results}
+        missing_names = [
+            country.name
+            for country in trade_query.comparison_countries
+            if country.id not in available_ids
+        ]
+
+        if missing_names:
+            raise ValueError(
+                "Trade data is not available for all comparison countries: "
+                + ", ".join(missing_names)
+            )
+
+        supplier_query = trade_query.model_copy(
+            update={"intent": TradeIntent.SUPPLIER_SEARCH}
+        )
+
+        # Build analytics against the complete supplier market first.
+        # This preserves the normal market-share, YoY and opportunity-score
+        # context. We then select only the two requested countries for the
+        # comparison.
+        all_opportunities = self._build_trade_opportunities(
+            trade_query=supplier_query,
+            hs_code=hs_code,
+            trade_results=trade_results,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+        opportunity_by_country_id = {
+            opportunity.country_id: opportunity for opportunity in all_opportunities
+        }
+
+        opportunities = [
+            opportunity_by_country_id[country.id]
+            for country in trade_query.comparison_countries
+        ]
+
+        country_a = opportunity_by_country_id[trade_query.comparison_countries[0].id]
+        country_b = opportunity_by_country_id[trade_query.comparison_countries[1].id]
+
+        comparison_result = compare_trade_opportunities(
+            country_a=country_a.model_dump(),
+            country_b=country_b.model_dump(),
+        )
+
+        comparison = TradeComparisonResponse(
+            country_a_id=comparison_result.country_a_id,
+            country_a_name=comparison_result.country_a_name,
+            country_b_id=comparison_result.country_b_id,
+            country_b_name=comparison_result.country_b_name,
+            trade_value_winner=comparison_result.trade_value_winner,
+            market_share_winner=comparison_result.market_share_winner,
+            yoy_growth_winner=comparison_result.yoy_growth_winner,
+            opportunity_score_winner=comparison_result.opportunity_score_winner,
+            overall_winner=comparison_result.overall_winner,
+            country_a_wins=comparison_result.country_a_wins,
+            country_b_wins=comparison_result.country_b_wins,
+        )
+
+        return TradeOpportunityResponse(
+            hs_code=hs_code.code,
+            hs_description=hs_code.description,
+            period_start=period_start,
+            period_end=period_end,
+            opportunities=opportunities,
+            insights=[],
+            recommendations=[],
+            comparison=comparison,
         )
 
     def _find_trade_opportunities(

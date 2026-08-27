@@ -21,6 +21,7 @@ class TradeIntent(str, Enum):
     EXPORT_OPPORTUNITY = "export_opportunity"
     IMPORT_OPPORTUNITY = "import_opportunity"
     MARKET_ANALYSIS = "market_analysis"
+    COMPARISON = "comparison"
     PRODUCT_SEARCH = "product_search"
     UNKNOWN = "unknown"
 
@@ -35,7 +36,15 @@ class QueryUnderstanding(BaseModel):
 
     country_text: str | None = Field(
         default=None,
-        description=("The country mentioned by the user."),
+        description=(
+            "The primary country mentioned by the user, such as a "
+            "destination or origin country."
+        ),
+    )
+
+    comparison_country_texts: list[str] = Field(
+        default_factory=list,
+        description=("Countries explicitly named as the subjects of a comparison."),
     )
 
     country_scope: CountryScope = Field(
@@ -101,6 +110,8 @@ class TradeQuery(BaseModel):
 
     country: ResolvedCountry | None = None
 
+    comparison_countries: list[ResolvedCountry] = Field(default_factory=list)
+
     hs_codes: list[ResolvedHSCode] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -142,5 +153,13 @@ class TradeQuery(BaseModel):
             raise ValueError(
                 "country_role must be specified when " "country_scope is SPECIFIC"
             )
+
+        if self.intent == TradeIntent.COMPARISON:
+            if len(self.comparison_countries) != 2:
+                raise ValueError("comparison requires exactly two comparison countries")
+
+            comparison_ids = [country.id for country in self.comparison_countries]
+            if len(set(comparison_ids)) != 2:
+                raise ValueError("comparison countries must be distinct")
 
         return self
