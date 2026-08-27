@@ -390,6 +390,35 @@ class TradeOpportunityService:
             )
 
         # ==================================================
+        # COMPARISON
+        # ==================================================
+
+        if trade_query.intent == TradeIntent.COMPARISON:
+
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country is not None
+                and trade_query.country_role == CountryRole.DESTINATION
+            ):
+                return self.trade_repository.find_trade_history_pair(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    reporter_country_id=trade_query.country.id,
+                    partner_country_id=country_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+
+            return self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="export",
+                country_id=country_id,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+        # ==================================================
         # BUYER SEARCH
         # ==================================================
 
