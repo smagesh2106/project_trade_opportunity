@@ -159,35 +159,18 @@ class TradeOpportunityService:
             opportunities=insight_inputs,
         )
 
-        # generate_trade_insights() returns analytics insight objects
-        # identified by country_id. Resolve presentation fields from the
-        # opportunity inputs rather than assuming they exist on the
-        # analytics insight object.
-        opportunity_by_country_id = {
-            item["country_id"]: item
-            for item in insight_inputs
-        }
-
-        insights = []
-        for insight in generated_insights:
-            country_data = opportunity_by_country_id.get(insight.country_id)
-
-            # Ignore an orphaned insight rather than failing the entire
-            # trade analysis response.
-            if country_data is None:
-                continue
-
-            insights.append(
-                TradeInsightSchema(
-                    insight_type=insight.insight_type,
-                    country_id=insight.country_id,
-                    country_name=country_data["country_name"],
-                    iso2=country_data["iso2"],
-                    iso3=country_data["iso3"],
-                    title=insight.title,
-                    description=insight.description,
-                )
+        insights = [
+            TradeInsightSchema(
+                insight_type=insight.insight_type,
+                country_id=insight.country_id,
+                country_name=insight.country_name,
+                iso2=insight.iso2,
+                iso3=insight.iso3,
+                title=insight.title,
+                description=insight.description,
             )
+            for insight in generated_insights
+        ]
 
         # --------------------------------------------------
         # Business recommendations
