@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.intelligence.trade_query_builder import TradeQueryBuilder
 from app.schemas.intelligence import TradeQuery
 from app.schemas.trade_opportunity import TradeOpportunityResponse
@@ -52,6 +54,8 @@ class TradeIntelligenceService:
     def analyze(
         self,
         query: str,
+        period_start: date | None = None,
+        period_end: date | None = None,
     ) -> TradeOpportunityResponse:
         """
         Build a TradeQuery and execute trade analysis.
@@ -85,4 +89,8 @@ class TradeIntelligenceService:
         # Execute trade opportunity analysis
         # --------------------------------------------------
 
-        return self.trade_opportunity_service.analyze(trade_query)
+        return self.trade_opportunity_service.analyze(
+            trade_query=trade_query,
+            period_start=period_start,
+            period_end=period_end,
+        )

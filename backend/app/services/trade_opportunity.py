@@ -19,6 +19,9 @@ from app.schemas.trade_opportunity import (
     TradeOpportunityResponse,
 )
 
+DEFAULT_PERIOD_START = date(2025, 1, 1)
+DEFAULT_PERIOD_END = date(2025, 12, 31)
+
 
 class TradeOpportunityService:
     def __init__(
@@ -36,6 +39,8 @@ class TradeOpportunityService:
     def analyze(
         self,
         trade_query: TradeQuery,
+        period_start: date | None = None,
+        period_end: date | None = None,
     ) -> TradeOpportunityResponse:
 
         # --------------------------------------------------
@@ -73,12 +78,10 @@ class TradeOpportunityService:
 
         hs_code = trade_query.hs_codes[0]
 
-        # --------------------------------------------------
-        # Current analysis period
-        # --------------------------------------------------
-
-        period_start = date(2025, 1, 1)
-        period_end = date(2025, 12, 31)
+        period_start, period_end = self._resolve_analysis_period(
+            period_start=period_start,
+            period_end=period_end,
+        )
 
         # ==================================================
         # TRADE OPPORTUNITY SEARCH
@@ -556,3 +559,27 @@ class TradeOpportunityService:
             )
 
         raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
+
+    # ==================================================
+    # ANALYSIS PERIOD
+    # ==================================================
+
+    def _resolve_analysis_period(
+        self,
+        period_start: date | None,
+        period_end: date | None,
+    ) -> tuple[date, date]:
+
+        if period_start is None and period_end is None:
+            return DEFAULT_PERIOD_START, DEFAULT_PERIOD_END
+
+        if period_start is None:
+            period_start = date(period_end.year, 1, 1)
+
+        if period_end is None:
+            period_end = date(period_start.year, 12, 31)
+
+        if period_end < period_start:
+            raise ValueError("period_end must be on or after period_start.")
+
+        return period_start, period_end

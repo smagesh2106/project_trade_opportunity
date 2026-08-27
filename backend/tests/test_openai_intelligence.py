@@ -1,7 +1,7 @@
 from app.services.openai_service import OpenAIService
 
 
-def test_query(query: str):
+def run_query_understanding(query: str):
     service = OpenAIService()
 
     result = service.understand_query(query)
@@ -22,10 +22,10 @@ def test_query(query: str):
 
 if __name__ == "__main__":
 
-    test_query("Find suppliers of electrical panels in India")
+    run_query_understanding("Find suppliers of electrical panels in India")
 
-    test_query("Find suppliers of electrical panels to India")
+    run_query_understanding("Find suppliers of electrical panels to India")
 
-    test_query("Find buyers of electrical panels from India")
+    run_query_understanding("Find buyers of electrical panels from India")
 
-    test_query("Find suppliers of electrical panels")
+    run_query_understanding("Find suppliers of electrical panels")

@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -26,6 +28,8 @@ router = APIRouter(
 
 class TradeAnalysisRequest(BaseModel):
     query: str
+    period_start: date | None = None
+    period_end: date | None = None
 
 
 def get_trade_intelligence_service(
@@ -104,7 +108,11 @@ def analyze_trade(
 
     try:
 
-        return service.analyze(request.query)
+        return service.analyze(
+            query=request.query,
+            period_start=request.period_start,
+            period_end=request.period_end,
+        )
 
     except ValueError as exc:
 

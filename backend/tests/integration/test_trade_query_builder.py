@@ -6,6 +6,7 @@ from app.intelligence.trade_query_builder import TradeQueryBuilder
 from app.repositories.country import CountryRepository
 from app.repositories.product import ProductRepository
 from app.schemas.intelligence import (
+    CountryRole,
     CountryScope,
     QueryUnderstanding,
     TradeIntent,
@@ -40,6 +41,7 @@ def test_trade_query_specific_country():
             product_text="electrical panels",
             country_text="India",
             country_scope=CountryScope.SPECIFIC,
+            country_role=CountryRole.LOCATION,
         )
 
         result = builder.build(
@@ -57,6 +59,7 @@ def test_trade_query_specific_country():
         assert result.product.confidence == 1.0
 
         assert result.country_scope == CountryScope.SPECIFIC
+        assert result.country_role == CountryRole.LOCATION
 
         assert result.country is not None
         assert result.country.name == "India"
@@ -89,6 +92,7 @@ def test_trade_query_all_countries():
             product_text="electrical panels",
             country_text=None,
             country_scope=CountryScope.ALL,
+            country_role=CountryRole.UNSPECIFIED,
         )
 
         result = builder.build(
@@ -102,6 +106,7 @@ def test_trade_query_all_countries():
         assert result.product.name == ("Electrical Control Panels")
 
         assert result.country_scope == CountryScope.ALL
+        assert result.country_role == CountryRole.UNSPECIFIED
         assert result.country is None
 
         assert len(result.hs_codes) == 1

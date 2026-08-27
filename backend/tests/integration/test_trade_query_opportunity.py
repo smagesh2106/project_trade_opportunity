@@ -2,6 +2,7 @@ from app.db.session import SessionLocal
 from app.repositories.country import CountryRepository
 from app.repositories.trade_data import TradeDataRepository
 from app.schemas.intelligence import (
+    CountryRole,
     CountryScope,
     ResolvedCountry,
     ResolvedHSCode,
@@ -30,7 +31,7 @@ def test_trade_query_specific_country():
         # -----------------------------------------------
 
         trade_query = TradeQuery(
-            original_query=("Find suppliers of electrical panels in India"),
+            original_query=("Find suppliers of electrical panels to India"),
             intent=TradeIntent.SUPPLIER_SEARCH,
             product=ResolvedProduct(
                 id=1,
@@ -38,6 +39,7 @@ def test_trade_query_specific_country():
                 confidence=1.0,
             ),
             country_scope=CountryScope.SPECIFIC,
+            country_role=CountryRole.DESTINATION,
             country=ResolvedCountry(
                 id=1,
                 iso2="IN",
@@ -94,6 +96,7 @@ def test_trade_query_specific_country():
         print(f"  Intent: {trade_query.intent.value}")
         print(f"  Product: " f"{trade_query.product.name}")
         print(f"  Country scope: " f"{trade_query.country_scope.value}")
+        print(f"  Country role: " f"{trade_query.country_role.value}")
         print(f"  Country: " f"{trade_query.country.name}")
         print(f"  HS code: " f"{trade_query.hs_codes[0].code}")
 
@@ -136,6 +139,7 @@ def test_trade_query_all_countries():
                 confidence=1.0,
             ),
             country_scope=CountryScope.ALL,
+            country_role=CountryRole.UNSPECIFIED,
             country=None,
             hs_codes=[
                 ResolvedHSCode(
@@ -152,19 +156,22 @@ def test_trade_query_all_countries():
 
         result = service.analyze(trade_query)
 
-        assert len(result.opportunities) == 4
+        assert len(result.opportunities) == 5
 
-        assert result.opportunities[0].country_name == "Germany"
-        assert result.opportunities[0].trade_value_usd == 25_000_000
+        assert result.opportunities[0].country_name == "India"
+        assert result.opportunities[0].trade_value_usd == 35_000_000
 
-        assert result.opportunities[1].country_name == ("United States")
-        assert result.opportunities[1].trade_value_usd == 20_000_000
+        assert result.opportunities[1].country_name == "Germany"
+        assert result.opportunities[1].trade_value_usd == 25_000_000
 
-        assert result.opportunities[2].country_name == ("United Arab Emirates")
-        assert result.opportunities[2].trade_value_usd == 12_000_000
+        assert result.opportunities[2].country_name == ("United States")
+        assert result.opportunities[2].trade_value_usd == 20_000_000
 
-        assert result.opportunities[3].country_name == ("Saudi Arabia")
-        assert result.opportunities[3].trade_value_usd == 7_000_000
+        assert result.opportunities[3].country_name == ("United Arab Emirates")
+        assert result.opportunities[3].trade_value_usd == 12_000_000
+
+        assert result.opportunities[4].country_name == ("Saudi Arabia")
+        assert result.opportunities[4].trade_value_usd == 7_000_000
 
         print("\nGlobal supplier search:")
 

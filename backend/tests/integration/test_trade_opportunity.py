@@ -3,6 +3,15 @@ from datetime import date
 from app.db.session import SessionLocal
 from app.repositories.country import CountryRepository
 from app.repositories.trade_data import TradeDataRepository
+from app.schemas.intelligence import (
+    CountryRole,
+    CountryScope,
+    ResolvedCountry,
+    ResolvedHSCode,
+    ResolvedProduct,
+    TradeIntent,
+    TradeQuery,
+)
 from app.services.trade_opportunity import TradeOpportunityService
 
 
@@ -18,14 +27,37 @@ def test_supplier_search_india():
             country_repository=country_repository,
         )
 
-        result = service.find_suppliers(
-            hs_code_id=4,
-            hs_code="853710",
-            hs_description=("For a voltage not exceeding 1,000 V"),
-            target_country_id=1,
-            period_start=date(2025, 1, 1),
-            period_end=date(2025, 12, 31),
+        trade_query = TradeQuery(
+            original_query="Find suppliers of electrical panels to India",
+            intent=TradeIntent.SUPPLIER_SEARCH,
+            product=ResolvedProduct(
+                id=1,
+                name="Electrical Control Panels",
+                confidence=1.0,
+            ),
+            country_scope=CountryScope.SPECIFIC,
+            country_role=CountryRole.DESTINATION,
+            country=ResolvedCountry(
+                id=1,
+                iso2="IN",
+                iso3="IND",
+                name="India",
+                confidence=1.0,
+            ),
+            hs_codes=[
+                ResolvedHSCode(
+                    id=4,
+                    code="853710",
+                    description=("For a voltage not exceeding 1,000 V"),
+                    level=6,
+                    confidence=0.95,
+                    mapping_type="candidate",
+                    source="Development seed data",
+                )
+            ],
         )
+
+        result = service.analyze(trade_query)
 
         assert result.hs_code == "853710"
         assert result.period_start == date(2025, 1, 1)
