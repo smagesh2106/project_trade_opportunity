@@ -5,6 +5,7 @@ from app.analytics.market_trends import calculate_market_trend
 from app.analytics.opportunity_score import calculate_opportunity_score
 from app.analytics.trade_trends import calculate_yoy_growth
 from app.analytics.trade_insights import generate_trade_insights
+from app.analytics.trade_recommendations import generate_trade_recommendations
 
 from app.repositories.country import CountryRepository
 from app.repositories.trade_data import TradeDataRepository
@@ -21,6 +22,9 @@ from app.schemas.trade_opportunity import (
     TradeOpportunityResponse,
 )
 from app.schemas.trade_insight import TradeInsight as TradeInsightSchema
+from app.schemas.trade_recommendation import (
+    TradeRecommendation as TradeRecommendationSchema,
+)
 
 from app.schemas.trade_trends import (
     MarketTrendPoint,
@@ -161,6 +165,7 @@ class TradeOpportunityService:
                 period_end=period_end,
                 opportunities=[],
                 insights=[],
+                recommendations=[],
             )
 
         # ==================================================
@@ -358,6 +363,51 @@ class TradeOpportunityService:
             for insight in generated_insights
         ]
 
+        # ==================================================
+        # BUSINESS RECOMMENDATIONS
+        # ==================================================
+
+        generated_recommendations = generate_trade_recommendations(
+            opportunities=insight_inputs,
+            intent=trade_query.intent.value,
+        )
+
+        recommendations = [
+            TradeRecommendationSchema(
+                recommendation_type=recommendation.recommendation_type,
+                priority=recommendation.priority,
+                country_id=recommendation.country_id,
+                country_name=next(
+                    (
+                        item["country_name"]
+                        for item in insight_inputs
+                        if item["country_id"] == recommendation.country_id
+                    ),
+                    None,
+                ),
+                iso2=next(
+                    (
+                        item["iso2"]
+                        for item in insight_inputs
+                        if item["country_id"] == recommendation.country_id
+                    ),
+                    None,
+                ),
+                iso3=next(
+                    (
+                        item["iso3"]
+                        for item in insight_inputs
+                        if item["country_id"] == recommendation.country_id
+                    ),
+                    None,
+                ),
+                title=recommendation.title,
+                rationale=recommendation.rationale,
+                action=recommendation.action,
+            )
+            for recommendation in generated_recommendations
+        ]
+
         return TradeOpportunityResponse(
             hs_code=hs_code.code,
             hs_description=hs_code.description,
@@ -365,6 +415,7 @@ class TradeOpportunityService:
             period_end=period_end,
             opportunities=opportunities,
             insights=insights,
+            recommendations=recommendations,
         )
 
     # ==================================================
@@ -831,18 +882,60 @@ class TradeOpportunityService:
     # ==================================================
     # ANALYSIS PERIOD
     # ==================================================
-
     def _resolve_analysis_period(
         self,
         period_start: date | None,
         period_end: date | None,
     ) -> tuple[date, date]:
 
-        if period_start is None:
-            period_start = DEFAULT_PERIOD_START
+        # --------------------------------------------------
+        # Neither boundary supplied:
+        #
+        # Use the configured default analysis period.
+        # --------------------------------------------------
 
-        if period_end is None:
-            period_end = DEFAULT_PERIOD_END
+        if period_start is None and period_end is None:
+            return DEFAULT_PERIOD_START, DEFAULT_PERIOD_END
+
+        # --------------------------------------------------
+        # Only start supplied:
+        #
+        # Use the supplied start year and complete the
+        # period through December 31 of that same year.
+        #
+        # Example:
+        #   2024-01-01 -> 2024-12-31
+        # --------------------------------------------------
+
+        if period_start is not None and period_end is None:
+            period_end = date(
+                period_start.year,
+                12,
+                31,
+            )
+
+        # --------------------------------------------------
+        # Only end supplied:
+        #
+        # Use the supplied end year and start from
+        # January 1 of that same year.
+        #
+        # Example:
+        #   2024-12-31 -> 2024-01-01
+        # --------------------------------------------------
+
+        elif period_start is None and period_end is not None:
+            period_start = date(
+                period_end.year,
+                1,
+                1,
+            )
+
+        # --------------------------------------------------
+        # Both boundaries supplied:
+        #
+        # Preserve the exact period requested by the caller.
+        # --------------------------------------------------
 
         if period_start > period_end:
             raise ValueError("period_start cannot be after period_end.")

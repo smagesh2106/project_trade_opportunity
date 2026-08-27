@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from app.schemas.trade_insight import TradeInsight
+from app.schemas.trade_recommendation import TradeRecommendation
 
 
 class TradeOpportunity(BaseModel):
@@ -32,3 +33,4 @@ class TradeOpportunityResponse(BaseModel):
 
     opportunities: list[TradeOpportunity]
     insights: list[TradeInsight] = Field(default_factory=list)
+    recommendations: list[TradeRecommendation] = Field(default_factory=list)
