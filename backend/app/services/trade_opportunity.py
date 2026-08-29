@@ -343,16 +343,41 @@ class TradeOpportunityService:
             country_b=country_b.model_dump(),
         )
 
+        # The deterministic comparison analytics returns winner IDs. Resolve
+        # winner names from the already-built opportunity objects rather than
+        # relying on the analytics result to carry presentation fields.
+        comparison_country_by_id = {
+            country_a.country_id: country_a,
+            country_b.country_id: country_b,
+        }
+
+        def winner_name(winner_id: int | None) -> str | None:
+            if winner_id is None:
+                return None
+
+            winner = comparison_country_by_id.get(winner_id)
+            if winner is None:
+                return None
+
+            return winner.country_name
+
         comparison = TradeComparisonResponse(
-            country_a_id=comparison_result.country_a_id,
-            country_a_name=comparison_result.country_a_name,
-            country_b_id=comparison_result.country_b_id,
-            country_b_name=comparison_result.country_b_name,
+            country_a_id=country_a.country_id,
+            country_a_name=country_a.country_name,
+            country_b_id=country_b.country_id,
+            country_b_name=country_b.country_name,
             trade_value_winner=comparison_result.trade_value_winner,
+            trade_value_winner_name=winner_name(comparison_result.trade_value_winner),
             market_share_winner=comparison_result.market_share_winner,
+            market_share_winner_name=winner_name(comparison_result.market_share_winner),
             yoy_growth_winner=comparison_result.yoy_growth_winner,
+            yoy_growth_winner_name=winner_name(comparison_result.yoy_growth_winner),
             opportunity_score_winner=comparison_result.opportunity_score_winner,
+            opportunity_score_winner_name=winner_name(
+                comparison_result.opportunity_score_winner
+            ),
             overall_winner=comparison_result.overall_winner,
+            overall_winner_name=winner_name(comparison_result.overall_winner),
             country_a_wins=comparison_result.country_a_wins,
             country_b_wins=comparison_result.country_b_wins,
         )

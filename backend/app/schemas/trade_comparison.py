@@ -14,11 +14,19 @@ class TradeComparisonResponse(BaseModel):
     country_b_name: str
 
     trade_value_winner: int | None = None
+    trade_value_winner_name: str | None = None
+
     market_share_winner: int | None = None
+    market_share_winner_name: str | None = None
+
     yoy_growth_winner: int | None = None
+    yoy_growth_winner_name: str | None = None
+
     opportunity_score_winner: int | None = None
+    opportunity_score_winner_name: str | None = None
 
     overall_winner: int | None = None
+    overall_winner_name: str | None = None
 
     country_a_wins: int
     country_b_wins: int
