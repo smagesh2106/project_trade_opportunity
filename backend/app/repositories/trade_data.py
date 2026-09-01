@@ -3,7 +3,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import TradeData
+from app.models import DataSource, TradeData
 
 
 class TradeDataRepository:
@@ -13,13 +13,13 @@ class TradeDataRepository:
     # ==================================================
     # SUPPLIER SEARCH
     # ==================================================
-
     def find_supplier_countries(
         self,
         hs_code_id: int,
         target_country_id: int | None = None,
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
 
         statement = select(
@@ -29,6 +29,15 @@ class TradeDataRepository:
             TradeData.hs_code_id == hs_code_id,
             TradeData.trade_flow == "import",
         )
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         # --------------------------------------------------
         # Specific destination country
@@ -67,6 +76,7 @@ class TradeDataRepository:
         hs_code_id: int,
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
 
         statement = select(
@@ -76,6 +86,15 @@ class TradeDataRepository:
             TradeData.hs_code_id == hs_code_id,
             TradeData.trade_flow == "export",
         )
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         if period_start is not None:
             statement = statement.where(TradeData.period_start >= period_start)
@@ -99,6 +118,7 @@ class TradeDataRepository:
         target_country_id: int | None = None,
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
 
         statement = select(
@@ -108,6 +128,15 @@ class TradeDataRepository:
             TradeData.hs_code_id == hs_code_id,
             TradeData.trade_flow == "import",
         )
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         # --------------------------------------------------
         # Specific country
@@ -147,6 +176,7 @@ class TradeDataRepository:
         hs_code_id: int,
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
 
         statement = select(
@@ -162,6 +192,15 @@ class TradeDataRepository:
 
         if period_end is not None:
             statement = statement.where(TradeData.period_start <= period_end)
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         # --------------------------------------------------
         # Global buyer countries
@@ -194,6 +233,7 @@ class TradeDataRepository:
         origin_country_id: int,
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
 
         statement = select(
@@ -204,6 +244,15 @@ class TradeDataRepository:
             TradeData.trade_flow == "export",
             TradeData.reporter_country_id == origin_country_id,
         )
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         # --------------------------------------------------
         # Optional time filters
@@ -248,6 +297,7 @@ class TradeDataRepository:
         country_role: str = "reporter",
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
         """
         Return yearly trade totals for an HS code.
@@ -296,6 +346,15 @@ class TradeDataRepository:
             TradeData.hs_code_id == hs_code_id,
             TradeData.trade_flow == trade_flow,
         )
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         # --------------------------------------------------
         # Optional country filter
@@ -364,6 +423,7 @@ class TradeDataRepository:
         partner_country_id: int,
         period_start: date | None = None,
         period_end: date | None = None,
+        source_name: str | None = None,
     ) -> list[tuple[int, float]]:
         """
         Return yearly trade totals for a specific country pair.
@@ -395,6 +455,15 @@ class TradeDataRepository:
             TradeData.reporter_country_id == reporter_country_id,
             TradeData.partner_country_id == partner_country_id,
         )
+
+        # --------------------------------------------------
+        # Optional data-source filter
+        # --------------------------------------------------
+
+        source_id = self._get_source_id(source_name)
+
+        if source_id is not None:
+            statement = statement.where(TradeData.source_id == source_id)
 
         # --------------------------------------------------
         # Optional time filters
@@ -465,3 +534,19 @@ class TradeDataRepository:
             result.period_start,
             result.period_end,
         )
+
+    def _get_source_id(self, source_name: str | None) -> int | None:
+        if source_name is None:
+            return None
+
+        source = self.db.scalar(
+            select(DataSource).where(
+                DataSource.name == source_name,
+                DataSource.active.is_(True),
+            )
+        )
+
+        if source is None:
+            raise ValueError(f"Trade data source '{source_name}' is not configured.")
+
+        return source.id

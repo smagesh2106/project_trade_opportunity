@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+
+    trade_data_source: str = "Development Trade Data"
     # ------------------------------------------------------------------
     # PostgreSQL
     # ------------------------------------------------------------------

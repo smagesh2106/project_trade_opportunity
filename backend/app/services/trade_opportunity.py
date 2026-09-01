@@ -11,6 +11,7 @@ from app.schemas.trade_comparison import TradeComparisonResponse
 
 from app.repositories.country import CountryRepository
 from app.repositories.trade_data import TradeDataRepository
+from app.core.config import settings
 
 from app.schemas.intelligence import (
     CountryRole,
@@ -45,6 +46,7 @@ class TradeOpportunityService:
     ):
         self.trade_repository = trade_repository
         self.country_repository = country_repository
+        self.trade_data_source = settings.trade_data_source
 
     # ==================================================
     # MAIN ANALYSIS
@@ -295,6 +297,7 @@ class TradeOpportunityService:
             target_country_id=trade_query.country.id,
             period_start=period_start,
             period_end=period_end,
+            source_name=self.trade_data_source,
         )
 
         available_ids = {country_id for country_id, _ in trade_results}
@@ -432,6 +435,7 @@ class TradeOpportunityService:
                     partner_country_id=country_id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             return self.trade_repository.find_trade_history(
@@ -441,6 +445,7 @@ class TradeOpportunityService:
                 country_role="reporter",
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         # ==================================================
@@ -711,6 +716,7 @@ class TradeOpportunityService:
             country_role="reporter",
             period_start=period_start,
             period_end=period_end,
+            source_name=self.trade_data_source,
         )
 
         if not history:
@@ -800,6 +806,7 @@ class TradeOpportunityService:
                     target_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             # --------------------------------------------------
@@ -826,6 +833,7 @@ class TradeOpportunityService:
                 hs_code_id=hs_code_id,
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         raise ValueError(
@@ -864,6 +872,7 @@ class TradeOpportunityService:
                     target_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             # --------------------------------------------------
@@ -877,6 +886,7 @@ class TradeOpportunityService:
                     target_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             # --------------------------------------------------
@@ -890,6 +900,7 @@ class TradeOpportunityService:
                     origin_country_id=trade_query.country.id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             raise ValueError(
@@ -906,6 +917,7 @@ class TradeOpportunityService:
                 hs_code_id=hs_code_id,
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         raise ValueError(
@@ -940,6 +952,7 @@ class TradeOpportunityService:
             origin_country_id=trade_query.country.id,
             period_start=period_start,
             period_end=period_end,
+            source_name=self.trade_data_source,
         )
 
     # ==================================================
@@ -987,6 +1000,7 @@ class TradeOpportunityService:
             target_country_id=trade_query.country.id,
             period_start=period_start,
             period_end=period_end,
+            source_name=self.trade_data_source,
         )
 
     # ==================================================
@@ -1020,6 +1034,7 @@ class TradeOpportunityService:
                     partner_country_id=country_id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             return self.trade_repository.find_trade_history(
@@ -1029,6 +1044,7 @@ class TradeOpportunityService:
                 country_role="reporter",
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         # ==================================================
@@ -1049,6 +1065,7 @@ class TradeOpportunityService:
                     partner_country_id=country_id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             return self.trade_repository.find_trade_history(
@@ -1058,6 +1075,7 @@ class TradeOpportunityService:
                 country_role="reporter",
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         # ==================================================
@@ -1078,6 +1096,7 @@ class TradeOpportunityService:
                     partner_country_id=country_id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             return self.trade_repository.find_trade_history(
@@ -1087,6 +1106,7 @@ class TradeOpportunityService:
                 country_role="reporter",
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         # ==================================================
@@ -1107,6 +1127,7 @@ class TradeOpportunityService:
                     partner_country_id=country_id,
                     period_start=period_start,
                     period_end=period_end,
+                    source_name=self.trade_data_source,
                 )
 
             return self.trade_repository.find_trade_history(
@@ -1116,6 +1137,7 @@ class TradeOpportunityService:
                 country_role="reporter",
                 period_start=period_start,
                 period_end=period_end,
+                source_name=self.trade_data_source,
             )
 
         raise ValueError(f"Unsupported trade intent: {trade_query.intent.value}")
