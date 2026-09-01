@@ -1,8 +1,7 @@
 services:
   postgres:
     image: postgres:18
-    container_name: trade-opportunity-postgres
-
+    container_name: hanjes-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
