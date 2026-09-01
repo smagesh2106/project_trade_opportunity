@@ -3,23 +3,29 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app import models  # noqa: F401
 from app.core.config import settings
 from app.db.base import Base
-from app.models import Country
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-
 target_metadata = Base.metadata
-
 
 config.set_main_option(
     "sqlalchemy.url",
     settings.database_url,
 )
+
+
+def include_object(object_, name, type_, reflected, compare_to):
+    # Never allow Alembic autogenerate to manage its own version table.
+    if type_ == "table" and name == "trade_opportunity_alembic_version":
+        return False
+
+    return True
 
 
 def run_migrations_offline() -> None:
@@ -30,6 +36,10 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
+        include_object=include_object,
+        version_table="trade_opportunity_alembic_version",
+        version_table_schema="public",
     )
 
     with context.begin_transaction():
@@ -47,6 +57,10 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            include_schemas=True,
+            include_object=include_object,
+            version_table="trade_opportunity_alembic_version",
+            version_table_schema="public",
         )
 
         with context.begin_transaction():
