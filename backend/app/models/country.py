@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, CHAR, DateTime, String, func
+from sqlalchemy import Boolean, CHAR, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -24,6 +24,15 @@ class Country(Base):
         CHAR(3),
         unique=True,
         nullable=False,
+    )
+
+    # UN Comtrade M49 / reporter-partner code.
+    # Nullable during the migration so existing databases can be upgraded
+    # safely and populated by the country-master synchronization job.
+    comtrade_code: Mapped[int | None] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=True,
     )
 
     name: Mapped[str] = mapped_column(

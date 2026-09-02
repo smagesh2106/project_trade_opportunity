@@ -47,6 +47,11 @@ class CountryMasterSyncService:
             country.iso2.strip().upper(): country
             for country in existing_countries
         }
+        by_comtrade_code = {
+            country.comtrade_code: country
+            for country in existing_countries
+            if country.comtrade_code is not None
+        }
 
         inserted = 0
         updated = 0
@@ -55,6 +60,7 @@ class CountryMasterSyncService:
         for reference in references:
             iso2 = reference.iso2
             iso3 = reference.iso3
+            comtrade_code = reference.comtrade_code
 
             existing = by_iso3.get(iso3)
 
@@ -65,9 +71,16 @@ class CountryMasterSyncService:
                     skipped += 1
                     continue
 
+                code_owner = by_comtrade_code.get(comtrade_code)
+
+                if code_owner is not None:
+                    skipped += 1
+                    continue
+
                 country = Country(
                     iso2=iso2,
                     iso3=iso3,
+                    comtrade_code=comtrade_code,
                     name=reference.name,
                     official_name=None,
                     region=None,
@@ -80,6 +93,7 @@ class CountryMasterSyncService:
 
                 by_iso3[iso3] = country
                 by_iso2[iso2] = country
+                by_comtrade_code[comtrade_code] = country
                 inserted += 1
                 continue
 
@@ -90,7 +104,10 @@ class CountryMasterSyncService:
             if current_iso2 != iso2:
                 iso2_owner = by_iso2.get(iso2)
 
-                if iso2_owner is not None and iso2_owner.id != existing.id:
+                if (
+                    iso2_owner is not None
+                    and iso2_owner.id != existing.id
+                ):
                     skipped += 1
                     continue
 
@@ -99,6 +116,28 @@ class CountryMasterSyncService:
 
                 existing.iso2 = iso2
                 by_iso2[iso2] = existing
+                changed = True
+
+            current_code = existing.comtrade_code
+
+            if current_code != comtrade_code:
+                code_owner = by_comtrade_code.get(comtrade_code)
+
+                if (
+                    code_owner is not None
+                    and code_owner.id != existing.id
+                ):
+                    skipped += 1
+                    continue
+
+                if (
+                    current_code is not None
+                    and by_comtrade_code.get(current_code) is existing
+                ):
+                    by_comtrade_code.pop(current_code, None)
+
+                existing.comtrade_code = comtrade_code
+                by_comtrade_code[comtrade_code] = existing
                 changed = True
 
             if existing.name != reference.name:
