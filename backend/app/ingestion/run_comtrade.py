@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import argparse
-import os
 
 from sqlalchemy import func, select
 
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.ingestion.periods import (
     is_current_or_future_year,
@@ -184,7 +184,7 @@ def main() -> None:
 
     parser.add_argument(
         "--subscription-key",
-        default=os.getenv("COMTRADE_SUBSCRIPTION_KEY"),
+        default=None,
     )
 
     args = parser.parse_args()
@@ -224,7 +224,8 @@ def main() -> None:
             print(f"Incremental period selected: {period}")
 
         provider = ComtradeProvider(
-            subscription_key=args.subscription_key,
+            subscription_key=args.subscription_key
+            or settings.comtrade_subscription_key,
         )
 
         result = TradeIngestionService(
