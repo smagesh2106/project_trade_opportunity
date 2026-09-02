@@ -83,29 +83,40 @@ class TradeIngestionService:
             updated = 0
             rejected = 0
             reasons: list[str] = []
-            aggregate_records = 0
-            detail_records_skipped = 0
+            canonical_aggregate_records = 0
+            skipped_records = 0
 
             for record in records:
-                if not record.is_aggregate:
-                    detail_records_skipped += 1
+                if not record.is_country_level_aggregate:
+                    skipped_records += 1
                     continue
-                aggregate_records += 1
+
+                canonical_aggregate_records += 1
+
                 try:
                     self._validate_record(record)
+
                     reporter = self._resolve_country(
                         record.reporter_iso3,
                         record.reporter_name,
                     )
+
                     partner = self._resolve_country(
                         record.partner_iso3,
                         record.partner_name,
                     )
+
                     hs_code = self._resolve_hs_code(record.hs_code)
+
+                    source_record_id = (
+                        record.source_record_id
+                        or self._build_source_record_id(record)
+                    )
+
                     existing = self.db.scalar(
                         select(TradeData).where(
                             TradeData.source_id == source.id,
-                            TradeData.source_record_id == record.source_record_id,
+                            TradeData.source_record_id == source_record_id,
                         )
                     )
 
@@ -122,10 +133,7 @@ class TradeIngestionService:
                         "quantity": record.quantity,
                         "quantity_unit": record.quantity_unit,
                         "source_id": source.id,
-                        "source_record_id": (
-                            record.source_record_id
-                            or self._build_source_record_id(record)
-                        ),
+                        "source_record_id": source_record_id,
                         "data_version": record.data_version or data_version,
                         "updated_at": datetime.now(timezone.utc),
                     }
@@ -146,10 +154,18 @@ class TradeIngestionService:
             run.records_inserted = inserted
             run.records_updated = updated
             run.records_rejected = rejected
-            run.status = "completed" if rejected == 0 else "completed_with_rejections"
+            run.status = (
+                "completed"
+                if rejected == 0
+                else "completed_with_rejections"
+            )
             run.completed_at = datetime.now(timezone.utc)
 
-            failure_percentage = (rejected / len(records)) * 100.0 if records else 0.0
+            failure_percentage = (
+                (rejected / len(records)) * 100.0
+                if records
+                else 0.0
+            )
 
             self.db.add(
                 DataQualityResult(
@@ -159,7 +175,15 @@ class TradeIngestionService:
                     records_checked=len(records),
                     records_failed=rejected,
                     failure_percentage=failure_percentage,
-                    details=json.dumps({"rejection_reasons": reasons[:100]}),
+                    details=json.dumps(
+                        {
+                            "rejection_reasons": reasons[:100],
+                            "canonical_country_level_aggregate_records": (
+                                canonical_aggregate_records
+                            ),
+                            "non_canonical_records_skipped": skipped_records,
+                        }
+                    ),
                 )
             )
 
@@ -169,13 +193,13 @@ class TradeIngestionService:
                 ingestion_run_id=run.id,
                 status=run.status,
                 records_received=run.records_received,
+                aggregate_records=canonical_aggregate_records,
+                detail_records_skipped=skipped_records,
                 records_inserted=inserted,
                 records_updated=updated,
                 records_rejected=rejected,
                 data_period_start=run.data_period_start,
                 data_period_end=run.data_period_end,
-                aggregate_records=aggregate_records,
-                detail_records_skipped=detail_records_skipped,
             )
 
         except Exception as exc:
@@ -217,10 +241,15 @@ class TradeIngestionService:
 
         return source
 
-    def _resolve_country(self, iso3: str | None, name: str | None) -> Country:
+    def _resolve_country(
+        self,
+        iso3: str | None,
+        name: str | None,
+    ) -> Country:
         if not iso3:
             raise LookupError(
-                f"Country ISO3 is missing for provider record: {name or '<unknown>'}"
+                f"Country ISO3 is missing for provider record: "
+                f"{name or '<unknown>'}"
             )
 
         country = self.db.scalar(
@@ -233,13 +262,15 @@ class TradeIngestionService:
         if country is None:
             raise LookupError(
                 f"Country {iso3} is not present in the country master. "
-                "Synchronize the Comtrade country master before all-partner ingestion."
+                "Synchronize the Comtrade country master before "
+                "all-partner ingestion."
             )
 
         return country
 
     def _resolve_hs_code(self, code: str) -> HSCode:
         normalized = code.strip()
+
         hs_code = self.db.scalar(
             select(HSCode).where(
                 HSCode.code == normalized,
@@ -248,22 +279,42 @@ class TradeIngestionService:
         )
 
         if hs_code is None:
-            raise LookupError(f"HS code {normalized} is not present in the HS master.")
+            raise LookupError(
+                f"HS code {normalized} is not present in the HS master."
+            )
 
         return hs_code
 
     @staticmethod
     def _validate_record(record: TradeDataRecord) -> None:
         if record.trade_flow not in {"import", "export"}:
-            raise ValueError(f"Unsupported canonical trade flow: {record.trade_flow!r}")
+            raise ValueError(
+                f"Unsupported canonical trade flow: {record.trade_flow!r}"
+            )
+
         if record.reporter_code <= 0:
             raise ValueError("Reporter code must be positive.")
-        if record.partner_code < 0:
-            raise ValueError("Partner code cannot be negative.")
+
+        if record.partner_code <= 0:
+            raise ValueError("Partner code must be positive for country data.")
+
+        partner_iso3 = (record.partner_iso3 or "").strip().upper()
+
+        if len(partner_iso3) != 3 or not partner_iso3.isalpha():
+            raise ValueError(
+                f"Partner ISO3 must be a three-letter country code: "
+                f"{record.partner_iso3!r}"
+            )
+
         if not record.hs_code.strip():
             raise ValueError("HS code cannot be empty.")
-        if record.trade_value_usd is not None and record.trade_value_usd < 0:
+
+        if (
+            record.trade_value_usd is not None
+            and record.trade_value_usd < 0
+        ):
             raise ValueError("Trade value cannot be negative.")
+
         if record.quantity is not None and record.quantity < 0:
             raise ValueError("Quantity cannot be negative.")
 
@@ -283,21 +334,40 @@ class TradeIngestionService:
         text = str(period).strip()
 
         if len(text) == 4 and text.isdigit():
-            return datetime(int(text), 1, 1, tzinfo=timezone.utc)
+            return datetime(
+                int(text),
+                1,
+                1,
+                tzinfo=timezone.utc,
+            )
 
         if len(text) == 6 and text.isdigit():
-            return datetime(int(text[:4]), int(text[4:6]), 1, tzinfo=timezone.utc)
+            return datetime(
+                int(text[:4]),
+                int(text[4:6]),
+                1,
+                tzinfo=timezone.utc,
+            )
 
         return None
 
     @staticmethod
     def _period_to_end_datetime(period: str) -> datetime | None:
         start = TradeIngestionService._period_to_datetime(period)
+
         if start is None:
             return None
 
         if len(str(period).strip()) == 4:
-            return datetime(start.year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+            return datetime(
+                start.year,
+                12,
+                31,
+                23,
+                59,
+                59,
+                tzinfo=timezone.utc,
+            )
 
         from calendar import monthrange
 
