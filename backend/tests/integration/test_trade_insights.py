@@ -16,7 +16,7 @@ def test_trade_insights():
         },
         {
             "country_id": 5,
-            "country_name": "United States",
+            "country_name": "United States of America",
             "iso2": "US",
             "iso3": "USA",
             "trade_value_usd": 8_200_000,

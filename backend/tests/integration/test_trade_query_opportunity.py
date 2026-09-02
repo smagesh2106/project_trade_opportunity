@@ -80,7 +80,7 @@ def test_trade_query_specific_country():
         assert result.opportunities[0].iso3 == "DEU"
         assert result.opportunities[0].trade_value_usd == 10_500_000
 
-        assert result.opportunities[1].country_name == ("United States")
+        assert result.opportunities[1].country_name == ("United States of America")
         assert result.opportunities[1].iso3 == "USA"
         assert result.opportunities[1].trade_value_usd == 8_200_000
 
@@ -164,7 +164,7 @@ def test_trade_query_all_countries():
         assert result.opportunities[1].country_name == "Germany"
         assert result.opportunities[1].trade_value_usd == 25_000_000
 
-        assert result.opportunities[2].country_name == ("United States")
+        assert result.opportunities[2].country_name == ("United States of America")
         assert result.opportunities[2].trade_value_usd == 20_000_000
 
         assert result.opportunities[3].country_name == ("United Arab Emirates")

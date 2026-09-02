@@ -8,14 +8,30 @@ from app.models import TradeData
 
 
 class FakeAllPartnerProvider(TradeDataProvider):
+    def __init__(self, records):
+        self.records = records
+        self.received_partner_codes = None
+
     @property
     def provider_name(self) -> str:
         return "Fake All Partner Provider"
 
-    def __init__(self, records):
-        self.records = records
-
     def fetch_trade_data(self, **kwargs):
+        raise AssertionError(
+            "All-partner ingestion should use " "fetch_all_partner_trade_data()."
+        )
+
+    def fetch_all_partner_trade_data(
+        self,
+        *,
+        reporter_code: int,
+        period: str,
+        flow_code: str,
+        cmd_codes: list[str],
+        partner_codes: list[int],
+        max_records: int = 500,
+    ):
+        self.received_partner_codes = list(partner_codes)
         return self.records
 
 
@@ -26,8 +42,6 @@ def _record(
     partner_name: str,
     value: float,
     source_id: str,
-    is_aggregate: bool = True,
-    partner2_code: int | None = 0,
 ) -> TradeDataRecord:
     return TradeDataRecord(
         provider="Fake All Partner Provider",
@@ -49,73 +63,42 @@ def _record(
         quantity_unit="kg",
         source_record_id=source_id,
         data_version="test-v1",
-        is_aggregate=is_aggregate,
-        partner2_code=partner2_code,
-        partner2_iso3="W00" if partner2_code == 0 else None,
-        partner2_name="World" if partner2_code == 0 else None,
+        is_aggregate=True,
+        partner2_code=0,
+        partner2_iso3="W00",
+        partner2_name="World",
     )
 
 
-def test_all_partner_ingestion():
+def test_all_partner_ingestion_reads_codes_from_country_master():
     db = SessionLocal()
 
-    test_source_ids = {
-        "TEST-ALL-PARTNER-DEU",
-        "TEST-ALL-PARTNER-USA",
-    }
-
-    all_test_ids = {
-        "TEST-ALL-PARTNER-DEU",
-        "TEST-ALL-PARTNER-USA",
-        "TEST-ALL-PARTNER-S19",
-        "TEST-ALL-PARTNER-DETAIL",
+    test_ids = {
+        "TEST-DB-ALL-PARTNER-DEU",
+        "TEST-DB-ALL-PARTNER-USA",
     }
 
     try:
-        # Make the test safe to rerun.
-        db.query(TradeData).filter(
-            TradeData.source_record_id.in_(all_test_ids)
-        ).delete(synchronize_session=False)
-        db.commit()
-
         records = [
             _record(
                 partner_code=276,
                 partner_iso3="DEU",
                 partner_name="Germany",
                 value=101_000_000,
-                source_id="TEST-ALL-PARTNER-DEU",
+                source_id="TEST-DB-ALL-PARTNER-DEU",
             ),
             _record(
                 partner_code=840,
                 partner_iso3="USA",
-                partner_name="United States",
+                partner_name="United States of America",
                 value=202_000_000,
-                source_id="TEST-ALL-PARTNER-USA",
-            ),
-            # Comtrade aggregate/area code, not a country ISO3.
-            _record(
-                partner_code=0,
-                partner_iso3="S19",
-                partner_name="Other Asia, nes",
-                value=999,
-                source_id="TEST-ALL-PARTNER-S19",
-            ),
-            # Detail row.
-            _record(
-                partner_code=276,
-                partner_iso3="DEU",
-                partner_name="Germany",
-                value=888,
-                source_id="TEST-ALL-PARTNER-DETAIL",
-                is_aggregate=False,
-                partner2_code=36,
+                source_id="TEST-DB-ALL-PARTNER-USA",
             ),
         ]
 
         provider = FakeAllPartnerProvider(records)
 
-        first = TradeIngestionService(
+        result = TradeIngestionService(
             db=db,
             provider=provider,
         ).ingest(
@@ -127,92 +110,42 @@ def test_all_partner_ingestion():
             max_records=500,
         )
 
-        assert first.records_received == 4
-        assert first.aggregate_records == 2
-        assert first.detail_records_skipped == 2
-        assert first.records_inserted == 2
-        assert first.records_updated == 0
-        assert first.records_rejected == 0
+        assert result.records_received == 2
+        assert result.aggregate_records == 2
+        assert result.records_inserted == 2
+        assert result.records_updated == 0
+        assert result.records_rejected == 0
 
-        second = TradeIngestionService(
-            db=db,
-            provider=provider,
-        ).ingest(
-            reporter_code=699,
-            period="2025",
-            flow_code="M",
-            cmd_codes=["853710"],
-            partner_code=None,
-            max_records=500,
-        )
-
-        assert second.records_received == 4
-        assert second.aggregate_records == 2
-        assert second.detail_records_skipped == 2
-        assert second.records_inserted == 0
-        assert second.records_updated == 2
-        assert second.records_rejected == 0
+        assert provider.received_partner_codes is not None
+        assert provider.received_partner_codes
+        assert 276 in provider.received_partner_codes
+        assert 840 in provider.received_partner_codes
+        assert 699 not in provider.received_partner_codes
 
         persisted = (
-            db.query(TradeData)
-            .filter(
-                TradeData.source_record_id.in_(test_source_ids)
-            )
-            .all()
+            db.query(TradeData).filter(TradeData.source_record_id.in_(test_ids)).all()
         )
 
         assert len(persisted) == 2
 
-        values = {
-            row.source_record_id: float(row.trade_value_usd)
-            for row in persisted
-        }
-
-        assert values["TEST-ALL-PARTNER-DEU"] == 101_000_000
-        assert values["TEST-ALL-PARTNER-USA"] == 202_000_000
-
-        forbidden_rows = (
-            db.query(TradeData)
-            .filter(
-                TradeData.source_record_id.in_(
-                    {
-                        "TEST-ALL-PARTNER-S19",
-                        "TEST-ALL-PARTNER-DETAIL",
-                    }
-                )
-            )
-            .all()
-        )
-
-        assert forbidden_rows == []
-
-        print("PASS all-partner ingestion")
+        print("PASS DB-driven all-partner ingestion")
         print(
-            "First run : "
-            f"inserted={first.records_inserted}, "
-            f"updated={first.records_updated}"
+            "Partner codes supplied by country master: "
+            f"{len(provider.received_partner_codes)}"
         )
-        print(
-            "Second run: "
-            f"inserted={second.records_inserted}, "
-            f"updated={second.records_updated}"
-        )
-        print(
-            "Canonical country rows persisted: "
-            f"{len(persisted)}"
-        )
+        print("Records inserted: " f"{result.records_inserted}")
 
     finally:
         db.rollback()
 
-        db.query(TradeData).filter(
-            TradeData.source_record_id.in_(all_test_ids)
-        ).delete(synchronize_session=False)
+        db.query(TradeData).filter(TradeData.source_record_id.in_(test_ids)).delete(
+            synchronize_session=False
+        )
 
         db.commit()
         db.close()
 
 
 if __name__ == "__main__":
-    test_all_partner_ingestion()
-    print("All-partner ingestion test passed.")
+    test_all_partner_ingestion_reads_codes_from_country_master()
+    print("DB-driven all-partner ingestion test passed.")

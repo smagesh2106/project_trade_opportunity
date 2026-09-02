@@ -21,7 +21,7 @@ def test_trade_analyze_supplier_query():
     Expected:
 
         Germany
-        United States
+        United States of America
         United Arab Emirates
         Saudi Arabia
     """
@@ -76,7 +76,7 @@ def test_trade_analyze_supplier_query():
 
     assert opportunities[1]["rank"] == 2
     assert opportunities[1]["country_id"] == 5
-    assert opportunities[1]["country_name"] == "United States"
+    assert opportunities[1]["country_name"] == "United States of America"
     assert opportunities[1]["iso2"] == "US"
     assert opportunities[1]["iso3"] == "USA"
     assert opportunities[1]["trade_value_usd"] == 8_200_000
@@ -157,7 +157,7 @@ def test_trade_analyze_global_supplier_query():
     assert opportunities[1]["country_name"] == "Germany"
     assert opportunities[1]["trade_value_usd"] == 25_000_000
 
-    assert opportunities[2]["country_name"] == "United States"
+    assert opportunities[2]["country_name"] == "United States of America"
     assert opportunities[2]["trade_value_usd"] == 20_000_000
 
     assert opportunities[3]["country_name"] == "United Arab Emirates"
@@ -321,7 +321,7 @@ def test_trade_analyze_buyer_from_india_query():
     assert opportunities[0]["country_name"] == "Germany"
     assert opportunities[0]["trade_value_usd"] == 14_000_000
 
-    assert opportunities[1]["country_name"] == "United States"
+    assert opportunities[1]["country_name"] == "United States of America"
     assert opportunities[1]["trade_value_usd"] == 11_000_000
 
     assert opportunities[2]["country_name"] == "United Arab Emirates"

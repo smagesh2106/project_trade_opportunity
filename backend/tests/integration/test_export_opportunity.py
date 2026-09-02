@@ -118,7 +118,7 @@ def test_export_opportunity_from_india():
 
         expected = [
             ("Germany", "DEU", 14_000_000.0),
-            ("United States", "USA", 11_000_000.0),
+            ("United States of America", "USA", 11_000_000.0),
             ("United Arab Emirates", "ARE", 6_000_000.0),
             ("Saudi Arabia", "SAU", 4_000_000.0),
         ]

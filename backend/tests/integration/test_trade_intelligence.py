@@ -160,7 +160,7 @@ def test_specific_country_query():
 
         assert result.opportunities[0].trade_value_usd == 10_500_000
 
-        assert result.opportunities[1].country_name == "United States"
+        assert result.opportunities[1].country_name == "United States of America"
 
         assert result.opportunities[1].iso3 == "USA"
 
@@ -291,7 +291,7 @@ def test_all_country_query():
         assert result.opportunities[1].trade_value_usd == 25_000_000
 
         # USA
-        assert result.opportunities[2].country_name == "United States"
+        assert result.opportunities[2].country_name == "United States of America"
 
         assert result.opportunities[2].iso3 == "USA"
 
@@ -864,7 +864,7 @@ def test_specific_buyer_from_india_query():
 
         assert result.opportunities[0].trade_value_usd == 14_000_000
 
-        assert result.opportunities[1].country_name == "United States"
+        assert result.opportunities[1].country_name == "United States of America"
 
         assert result.opportunities[1].iso3 == "USA"
 

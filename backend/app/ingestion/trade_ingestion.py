@@ -70,7 +70,7 @@ class TradeIngestionService:
         self.db.flush()
 
         try:
-            records = self.provider.fetch_trade_data(
+            records = self._fetch_records(
                 reporter_code=reporter_code,
                 period=period,
                 flow_code=flow_code,
@@ -171,7 +171,11 @@ class TradeIngestionService:
                 DataQualityResult(
                     ingestion_run_id=run.id,
                     check_name="record_validation",
-                    status="passed" if rejected == 0 else "warning",
+                    status=(
+                        "passed"
+                        if rejected == 0
+                        else "warning"
+                    ),
                     records_checked=len(records),
                     records_failed=rejected,
                     failure_percentage=failure_percentage,
@@ -217,6 +221,90 @@ class TradeIngestionService:
             self.db.add(failed_run)
             self.db.commit()
             raise
+
+    def _fetch_records(
+        self,
+        *,
+        reporter_code: int,
+        period: str,
+        flow_code: str,
+        cmd_codes: list[str],
+        partner_code: int | None,
+        max_records: int,
+    ) -> list[TradeDataRecord]:
+        # Specific partner:
+        # use the normal provider request.
+        if partner_code is not None:
+            return self.provider.fetch_trade_data(
+                reporter_code=reporter_code,
+                period=period,
+                flow_code=flow_code,
+                cmd_codes=cmd_codes,
+                partner_code=partner_code,
+                max_records=max_records,
+            )
+
+        # All partners:
+        # read the current synchronized UN Comtrade M49 codes from the
+        # country master and use the provider's explicit batching method.
+        fetch_all = getattr(
+            self.provider,
+            "fetch_all_partner_trade_data",
+            None,
+        )
+
+        if fetch_all is None:
+            # Backwards-compatible fallback for providers that do not
+            # implement explicit all-partner batching.
+            return self.provider.fetch_trade_data(
+                reporter_code=reporter_code,
+                period=period,
+                flow_code=flow_code,
+                cmd_codes=cmd_codes,
+                partner_code=None,
+                max_records=max_records,
+            )
+
+        partner_codes = self._get_partner_codes(
+            reporter_code=reporter_code,
+        )
+
+        if not partner_codes:
+            raise LookupError(
+                "No active countries with UN Comtrade codes are available "
+                "for all-partner ingestion. Run the country master "
+                "synchronization first."
+            )
+
+        return fetch_all(
+            reporter_code=reporter_code,
+            period=period,
+            flow_code=flow_code,
+            cmd_codes=cmd_codes,
+            partner_codes=partner_codes,
+            max_records=max_records,
+        )
+
+    def _get_partner_codes(
+        self,
+        *,
+        reporter_code: int,
+    ) -> list[int]:
+        rows = self.db.scalars(
+            select(Country.comtrade_code)
+            .where(
+                Country.active.is_(True),
+                Country.comtrade_code.is_not(None),
+                Country.comtrade_code != reporter_code,
+            )
+            .order_by(Country.comtrade_code)
+        ).all()
+
+        return [
+            int(code)
+            for code in rows
+            if code is not None and int(code) > 0
+        ]
 
     def _get_or_create_source(self) -> DataSource:
         source = self.db.scalar(
@@ -296,7 +384,9 @@ class TradeIngestionService:
             raise ValueError("Reporter code must be positive.")
 
         if record.partner_code <= 0:
-            raise ValueError("Partner code must be positive for country data.")
+            raise ValueError(
+                "Partner code must be positive for country data."
+            )
 
         partner_iso3 = (record.partner_iso3 or "").strip().upper()
 
@@ -319,7 +409,9 @@ class TradeIngestionService:
             raise ValueError("Quantity cannot be negative.")
 
     @staticmethod
-    def _build_source_record_id(record: TradeDataRecord) -> str:
+    def _build_source_record_id(
+        record: TradeDataRecord,
+    ) -> str:
         return (
             f"{record.provider}:"
             f"{record.reporter_code}:"
@@ -330,7 +422,9 @@ class TradeIngestionService:
         )
 
     @staticmethod
-    def _period_to_datetime(period: str) -> datetime | None:
+    def _period_to_datetime(
+        period: str,
+    ) -> datetime | None:
         text = str(period).strip()
 
         if len(text) == 4 and text.isdigit():
@@ -352,7 +446,9 @@ class TradeIngestionService:
         return None
 
     @staticmethod
-    def _period_to_end_datetime(period: str) -> datetime | None:
+    def _period_to_end_datetime(
+        period: str,
+    ) -> datetime | None:
         start = TradeIngestionService._period_to_datetime(period)
 
         if start is None:
@@ -374,7 +470,10 @@ class TradeIngestionService:
         return datetime(
             start.year,
             start.month,
-            monthrange(start.year, start.month)[1],
+            monthrange(
+                start.year,
+                start.month,
+            )[1],
             23,
             59,
             59,

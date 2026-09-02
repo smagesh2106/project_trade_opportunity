@@ -124,7 +124,7 @@ def test_import_opportunity_to_india():
         assert result.opportunities[0].country_name == "Germany"
         assert result.opportunities[0].trade_value_usd == 10_500_000.0
 
-        assert result.opportunities[1].country_name == "United States"
+        assert result.opportunities[1].country_name == "United States of America"
         assert result.opportunities[1].trade_value_usd == 8_200_000.0
 
         assert result.opportunities[2].country_name == "United Arab Emirates"
