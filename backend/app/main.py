@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     health,
     hs_codes,
     hs_versions,
+    ingestion,
     products,
     trade_intelligence,
 )
@@ -69,4 +70,11 @@ app.include_router(
     trade_intelligence.router,
     prefix="/api/v1",
     tags=["Trade Intelligence"],
+)
+
+
+app.include_router(
+    ingestion.router,
+    prefix="/api/v1",
+    tags=["Ingestion"],
 )
