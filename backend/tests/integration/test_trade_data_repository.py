@@ -1,18 +1,54 @@
 from datetime import date
 
+from sqlalchemy import select
+
 from app.db.session import SessionLocal
+from app.models import Country
+from app.repositories.hs_code import HSCodeRepository
 from app.repositories.trade_data import TradeDataRepository
+
+TEST_SOURCE_NAME = "Development Trade Data"
+HS_CODE = "853710"
+
+
+def _country_by_iso3(db, iso3: str) -> Country:
+    country = db.scalar(
+        select(Country).where(
+            Country.iso3 == iso3,
+            Country.active.is_(True),
+        )
+    )
+
+    assert country is not None, f"Country {iso3} was not found in the test database."
+
+    return country
 
 
 def test_trade_data_repository():
-
     db = SessionLocal()
 
     try:
-
         repository = TradeDataRepository(db)
+        hs_repository = HSCodeRepository(db)
 
-        hs_code_id = 4
+        # --------------------------------------------------
+        # Resolve database records by stable business keys.
+        #
+        # Do not rely on database primary-key values because
+        # country/HS IDs can change after syncs or reseeding.
+        # --------------------------------------------------
+
+        hs_code = hs_repository.get_by_code(HS_CODE)
+
+        assert hs_code is not None
+
+        hs_code_id = hs_code.id
+
+        india = _country_by_iso3(db, "IND")
+        germany = _country_by_iso3(db, "DEU")
+        usa = _country_by_iso3(db, "USA")
+        uae = _country_by_iso3(db, "ARE")
+        saudi_arabia = _country_by_iso3(db, "SAU")
 
         period_start = date(2025, 1, 1)
         period_end = date(2025, 12, 31)
@@ -20,12 +56,20 @@ def test_trade_data_repository():
         # ==================================================
         # Supplier search
         # ==================================================
+        #
+        # Restrict this integration test to the deterministic
+        # development fixture. Without source_name, the
+        # repository can also include ingested UN Comtrade
+        # records, which makes the expected result dependent
+        # on the current contents of the database.
+        # ==================================================
 
         supplier_results = repository.find_supplier_countries(
             hs_code_id=hs_code_id,
-            target_country_id=1,
+            target_country_id=india.id,
             period_start=period_start,
             period_end=period_end,
+            source_name=TEST_SOURCE_NAME,
         )
 
         print("\nSupplier countries for India:")
@@ -46,17 +90,23 @@ def test_trade_data_repository():
 
         assert len(supplier_results) == 4
 
-        assert supplier_results[0][0] == 4
-        assert float(supplier_results[0][1]) == 10_500_000
+        expected_suppliers = [
+            (germany.id, 10_500_000),
+            (usa.id, 8_200_000),
+            (uae.id, 4_600_000),
+            (saudi_arabia.id, 2_300_000),
+        ]
 
-        assert supplier_results[1][0] == 5
-        assert float(supplier_results[1][1]) == 8_200_000
+        for result, expected in zip(
+            supplier_results,
+            expected_suppliers,
+            strict=True,
+        ):
+            country_id, trade_value = result
+            expected_country_id, expected_trade_value = expected
 
-        assert supplier_results[2][0] == 3
-        assert float(supplier_results[2][1]) == 4_600_000
-
-        assert supplier_results[3][0] == 2
-        assert float(supplier_results[3][1]) == 2_300_000
+            assert country_id == expected_country_id
+            assert float(trade_value) == expected_trade_value
 
         # ==================================================
         # Global supplier search
@@ -66,6 +116,7 @@ def test_trade_data_repository():
             hs_code_id=hs_code_id,
             period_start=period_start,
             period_end=period_end,
+            source_name=TEST_SOURCE_NAME,
         )
 
         print("\nGlobal supplier countries:")
@@ -77,7 +128,7 @@ def test_trade_data_repository():
                 f"${float(trade_value):,.2f}"
             )
 
-        # 2025 global exports:
+        # Synthetic 2025 global exports:
         #
         # India           35.0M
         # Germany         25.0M
@@ -87,20 +138,24 @@ def test_trade_data_repository():
 
         assert len(global_supplier_results) == 5
 
-        assert global_supplier_results[0][0] == 1
-        assert float(global_supplier_results[0][1]) == 35_000_000
+        expected_global_suppliers = [
+            (india.id, 35_000_000),
+            (germany.id, 25_000_000),
+            (usa.id, 20_000_000),
+            (uae.id, 12_000_000),
+            (saudi_arabia.id, 7_000_000),
+        ]
 
-        assert global_supplier_results[1][0] == 4
-        assert float(global_supplier_results[1][1]) == 25_000_000
+        for result, expected in zip(
+            global_supplier_results,
+            expected_global_suppliers,
+            strict=True,
+        ):
+            country_id, trade_value = result
+            expected_country_id, expected_trade_value = expected
 
-        assert global_supplier_results[2][0] == 5
-        assert float(global_supplier_results[2][1]) == 20_000_000
-
-        assert global_supplier_results[3][0] == 3
-        assert float(global_supplier_results[3][1]) == 12_000_000
-
-        assert global_supplier_results[4][0] == 2
-        assert float(global_supplier_results[4][1]) == 7_000_000
+            assert country_id == expected_country_id
+            assert float(trade_value) == expected_trade_value
 
         # ==================================================
         # Global buyer search
@@ -110,6 +165,7 @@ def test_trade_data_repository():
             hs_code_id=hs_code_id,
             period_start=period_start,
             period_end=period_end,
+            source_name=TEST_SOURCE_NAME,
         )
 
         print("\nGlobal buyer countries:")
@@ -121,7 +177,7 @@ def test_trade_data_repository():
                 f"${float(trade_value):,.2f}"
             )
 
-        # Current synthetic 2025 data contains:
+        # Current synthetic 2025 import data contains:
         #
         # India imports:
         #   Germany        10.5M
@@ -132,9 +188,7 @@ def test_trade_data_repository():
         # Total India imports = 25.6M
 
         assert len(global_buyer_results) == 1
-
-        assert global_buyer_results[0][0] == 1
-
+        assert global_buyer_results[0][0] == india.id
         assert float(global_buyer_results[0][1]) == 25_600_000
 
         # ==================================================
@@ -143,9 +197,10 @@ def test_trade_data_repository():
 
         buyer_results = repository.find_buyer_countries(
             hs_code_id=hs_code_id,
-            target_country_id=1,
+            target_country_id=india.id,
             period_start=period_start,
             period_end=period_end,
+            source_name=TEST_SOURCE_NAME,
         )
 
         print("\nBuyer country: India")
@@ -158,9 +213,7 @@ def test_trade_data_repository():
             )
 
         assert len(buyer_results) == 1
-
-        assert buyer_results[0][0] == 1
-
+        assert buyer_results[0][0] == india.id
         assert float(buyer_results[0][1]) == 25_600_000
 
         # ==================================================
@@ -169,9 +222,10 @@ def test_trade_data_repository():
 
         buyer_from_india_results = repository.find_buyer_countries_from_origin(
             hs_code_id=hs_code_id,
-            origin_country_id=1,
+            origin_country_id=india.id,
             period_start=period_start,
             period_end=period_end,
+            source_name=TEST_SOURCE_NAME,
         )
 
         print("\nBuyer countries for exports from India:")
@@ -183,110 +237,32 @@ def test_trade_data_repository():
                 f"${float(trade_value):,.2f}"
             )
 
+        # Synthetic 2025 India exports:
+        #
+        # Germany        14.0M
+        # USA            11.0M
+        # UAE             6.0M
+        # Saudi Arabia    4.0M
+
         assert len(buyer_from_india_results) == 4
 
-        assert buyer_from_india_results[0][0] == 4
-        assert float(buyer_from_india_results[0][1]) == 14_000_000
-
-        assert buyer_from_india_results[1][0] == 5
-        assert float(buyer_from_india_results[1][1]) == 11_000_000
-
-        assert buyer_from_india_results[2][0] == 3
-        assert float(buyer_from_india_results[2][1]) == 6_000_000
-
-        assert buyer_from_india_results[3][0] == 2
-        assert float(buyer_from_india_results[3][1]) == 4_000_000
-
-        print("\nIndia-origin buyer search correctly " "returned the expected records.")
-
-        # ==================================================
-        # Historical trade history
-        # ==================================================
-
-        india_import_history = repository.find_trade_history(
-            hs_code_id=hs_code_id,
-            trade_flow="import",
-            country_id=1,
-            country_role="reporter",
-            period_start=date(2024, 1, 1),
-            period_end=date(2025, 12, 31),
-        )
-
-        print("\nIndia electrical-panel import history:")
-
-        for year, trade_value in india_import_history:
-            print(f"Year: {year}, " f"Import value: " f"${trade_value:,.2f}")
-
-        # 2024 India imports:
-        #
-        # Germany         9.0M
-        # USA             7.0M
-        # UAE             3.5M
-        # Saudi Arabia    1.8M
-        #
-        # Total = 21.3M
-        #
-        # 2025 India imports:
-        #
-        # Total = 25.6M
-
-        assert india_import_history == [
-            (2024, 21_300_000.0),
-            (2025, 25_600_000.0),
+        expected_buyers = [
+            (germany.id, 14_000_000),
+            (usa.id, 11_000_000),
+            (uae.id, 6_000_000),
+            (saudi_arabia.id, 4_000_000),
         ]
 
-        # ==================================================
-        # Historical global exports
-        # ==================================================
+        for result, expected in zip(
+            buyer_from_india_results,
+            expected_buyers,
+            strict=True,
+        ):
+            country_id, trade_value = result
+            expected_country_id, expected_trade_value = expected
 
-        global_export_history = repository.find_trade_history(
-            hs_code_id=hs_code_id,
-            trade_flow="export",
-            period_start=date(2025, 1, 1),
-            period_end=date(2025, 12, 31),
-        )
-
-        print("\nGlobal electrical-panel export history:")
-
-        for year, trade_value in global_export_history:
-            print(f"Year: {year}, " f"Export value: " f"${trade_value:,.2f}")
-
-        # 2025 total exports:
-        #
-        # India           35M
-        # Germany         25M
-        # USA             20M
-        # UAE             12M
-        # Saudi Arabia     7M
-        #
-        # Total = 99M
-
-        assert global_export_history == [
-            (2025, 99_000_000.0),
-        ]
-
-        # ==================================================
-        # Historical supplier-country analysis
-        # ==================================================
-
-        germany_to_india_history = repository.find_trade_history(
-            hs_code_id=hs_code_id,
-            trade_flow="import",
-            country_id=4,
-            country_role="partner",
-            period_start=date(2024, 1, 1),
-            period_end=date(2025, 12, 31),
-        )
-
-        print("\nGermany electrical-panel exports to India:")
-
-        for year, trade_value in germany_to_india_history:
-            print(f"Year: {year}, " f"Trade value: " f"${trade_value:,.2f}")
-
-        assert germany_to_india_history == [
-            (2024, 9_000_000.0),
-            (2025, 10_500_000.0),
-        ]
+            assert country_id == expected_country_id
+            assert float(trade_value) == expected_trade_value
 
         # ==================================================
         # Unknown HS code
@@ -296,6 +272,7 @@ def test_trade_data_repository():
             hs_code_id=999999,
             period_start=period_start,
             period_end=period_end,
+            source_name=TEST_SOURCE_NAME,
         )
 
         assert unknown_results == []

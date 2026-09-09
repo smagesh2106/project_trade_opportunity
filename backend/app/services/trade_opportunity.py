@@ -125,6 +125,7 @@ class TradeOpportunityService:
                 period_start=period_start,
                 period_end=period_end,
                 opportunities=[],
+                history=[],
                 insights=[],
                 recommendations=[],
                 comparison=None,
@@ -243,6 +244,17 @@ class TradeOpportunityService:
         ]
 
         # --------------------------------------------------
+        # Historical trend for the complete analysis context
+        # --------------------------------------------------
+
+        history = self._build_opportunity_history(
+            trade_query=trade_query,
+            hs_code_id=hs_code.id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+        # --------------------------------------------------
         # Return final response
         # --------------------------------------------------
 
@@ -252,6 +264,7 @@ class TradeOpportunityService:
             period_start=period_start,
             period_end=period_end,
             opportunities=opportunities,
+            history=history,
             insights=insights,
             recommendations=recommendations,
             comparison=None,
@@ -268,17 +281,22 @@ class TradeOpportunityService:
         trade data and the existing deterministic opportunity analytics.
         """
 
-        if not trade_query.hs_codes:
-            raise ValueError("Comparison requires at least one resolved HS code.")
-
         if trade_query.country is None:
-            raise ValueError("Comparison requires a destination country.")
+            raise ValueError(
+                "Comparison requires a destination country. "
+                "For example: 'Compare Germany vs UAE as suppliers of "
+                "electrical panels to India'."
+            )
 
         if trade_query.country_role != CountryRole.DESTINATION:
             raise ValueError(
-                "Supplier comparison currently requires the destination country "
-                "to be specified."
+                "Supplier comparison currently requires a destination country. "
+                "For example: 'Compare Germany vs UAE as suppliers of "
+                "electrical panels to India'."
             )
+
+        if not trade_query.hs_codes:
+            raise ValueError("Comparison requires at least one resolved HS code.")
 
         if len(trade_query.comparison_countries) != 2:
             raise ValueError(
@@ -385,12 +403,20 @@ class TradeOpportunityService:
             country_b_wins=comparison_result.country_b_wins,
         )
 
+        history = self._build_comparison_history(
+            trade_query=trade_query,
+            hs_code_id=hs_code.id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
         return TradeOpportunityResponse(
             hs_code=hs_code.code,
             hs_description=hs_code.description,
             period_start=period_start,
             period_end=period_end,
             opportunities=opportunities,
+            history=history,
             insights=[],
             recommendations=[],
             comparison=comparison,
@@ -644,6 +670,161 @@ class TradeOpportunityService:
             )
 
         return opportunities
+
+    def _build_opportunity_history(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[MarketTrendPoint]:
+        """
+        Build the yearly trade-value series represented by the current
+        opportunity query.
+
+        This is the series consumed by the frontend Trade Value Trend chart.
+        """
+
+        history: list[tuple[int, float]]
+
+        if trade_query.intent == TradeIntent.SUPPLIER_SEARCH:
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country is not None
+                and trade_query.country_role == CountryRole.DESTINATION
+            ):
+                history = self.trade_repository.find_trade_history(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    country_id=trade_query.country.id,
+                    country_role="reporter",
+                    period_start=period_start,
+                    period_end=period_end,
+                    source_name=self.trade_data_source,
+                )
+            else:
+                history = self.trade_repository.find_trade_history(
+                    hs_code_id=hs_code_id,
+                    trade_flow="export",
+                    period_start=period_start,
+                    period_end=period_end,
+                    source_name=self.trade_data_source,
+                )
+
+        elif trade_query.intent == TradeIntent.BUYER_SEARCH:
+            if (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country is not None
+                and trade_query.country_role == CountryRole.ORIGIN
+            ):
+                history = self.trade_repository.find_trade_history(
+                    hs_code_id=hs_code_id,
+                    trade_flow="export",
+                    country_id=trade_query.country.id,
+                    country_role="reporter",
+                    period_start=period_start,
+                    period_end=period_end,
+                    source_name=self.trade_data_source,
+                )
+            elif (
+                trade_query.country_scope == CountryScope.SPECIFIC
+                and trade_query.country is not None
+            ):
+                history = self.trade_repository.find_trade_history(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    country_id=trade_query.country.id,
+                    country_role="reporter",
+                    period_start=period_start,
+                    period_end=period_end,
+                    source_name=self.trade_data_source,
+                )
+            else:
+                history = self.trade_repository.find_trade_history(
+                    hs_code_id=hs_code_id,
+                    trade_flow="import",
+                    period_start=period_start,
+                    period_end=period_end,
+                    source_name=self.trade_data_source,
+                )
+
+        elif trade_query.intent == TradeIntent.EXPORT_OPPORTUNITY:
+            history = self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="export",
+                country_id=trade_query.country.id if trade_query.country else None,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+                source_name=self.trade_data_source,
+            )
+
+        elif trade_query.intent == TradeIntent.IMPORT_OPPORTUNITY:
+            history = self.trade_repository.find_trade_history(
+                hs_code_id=hs_code_id,
+                trade_flow="import",
+                country_id=trade_query.country.id if trade_query.country else None,
+                country_role="reporter",
+                period_start=period_start,
+                period_end=period_end,
+                source_name=self.trade_data_source,
+            )
+
+        else:
+            return []
+
+        return [
+            MarketTrendPoint(
+                year=year,
+                trade_value_usd=trade_value,
+            )
+            for year, trade_value in history
+        ]
+
+    def _build_comparison_history(
+        self,
+        trade_query: TradeQuery,
+        hs_code_id: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[MarketTrendPoint]:
+        """
+        Return the combined yearly imports from the two countries being
+        compared into the selected destination.
+        """
+
+        if (
+            trade_query.country is None
+            or trade_query.country_role != CountryRole.DESTINATION
+            or len(trade_query.comparison_countries) != 2
+        ):
+            return []
+
+        totals_by_year: dict[int, float] = {}
+
+        for comparison_country in trade_query.comparison_countries:
+            pair_history = self.trade_repository.find_trade_history_pair(
+                hs_code_id=hs_code_id,
+                trade_flow="import",
+                reporter_country_id=trade_query.country.id,
+                partner_country_id=comparison_country.id,
+                period_start=period_start,
+                period_end=period_end,
+                source_name=self.trade_data_source,
+            )
+
+            for year, trade_value in pair_history:
+                totals_by_year[year] = totals_by_year.get(year, 0.0) + float(
+                    trade_value
+                )
+
+        return [
+            MarketTrendPoint(
+                year=year,
+                trade_value_usd=round(trade_value, 2),
+            )
+            for year, trade_value in sorted(totals_by_year.items())
+        ]
 
     def _analyze_market_analysis(
         self,

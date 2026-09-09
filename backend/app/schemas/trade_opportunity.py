@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from app.schemas.trade_comparison import TradeComparisonResponse
 from app.schemas.trade_insight import TradeInsight
 from app.schemas.trade_recommendation import TradeRecommendation
+from app.schemas.trade_trends import MarketTrendPoint
 
 
 class TradeOpportunity(BaseModel):
@@ -33,6 +34,7 @@ class TradeOpportunityResponse(BaseModel):
     period_end: date | None = None
 
     opportunities: list[TradeOpportunity]
+    history: list[MarketTrendPoint] = Field(default_factory=list)
     insights: list[TradeInsight] = Field(default_factory=list)
     recommendations: list[TradeRecommendation] = Field(default_factory=list)
     comparison: TradeComparisonResponse | None = None

@@ -11,6 +11,8 @@ from app.schemas.intelligence import (
     TradeQuery,
 )
 from app.services.trade_opportunity import TradeOpportunityService
+from app.repositories.hs_code import HSCodeRepository
+from app.models import hs_code
 
 
 def test_trade_query_specific_country():
@@ -19,6 +21,9 @@ def test_trade_query_specific_country():
     try:
         trade_repository = TradeDataRepository(db)
         country_repository = CountryRepository(db)
+        hs_repository = HSCodeRepository(db)
+        hs_code = hs_repository.get_by_code("853710")
+        assert hs_code is not None
 
         service = TradeOpportunityService(
             trade_repository=trade_repository,
@@ -49,10 +54,10 @@ def test_trade_query_specific_country():
             ),
             hs_codes=[
                 ResolvedHSCode(
-                    id=4,
-                    code="853710",
-                    description=("For a voltage not exceeding 1,000 V"),
-                    level=6,
+                    id=hs_code.id,
+                    code=hs_code.code,
+                    description=hs_code.description,
+                    level=hs_code.level,
                     confidence=0.95,
                     mapping_type="candidate",
                     source="Development seed data",
@@ -120,6 +125,10 @@ def test_trade_query_all_countries():
     try:
         trade_repository = TradeDataRepository(db)
         country_repository = CountryRepository(db)
+        hs_repository = HSCodeRepository(db)
+
+        hs_code = hs_repository.get_by_code("853710")
+        assert hs_code is not None
 
         service = TradeOpportunityService(
             trade_repository=trade_repository,
@@ -143,10 +152,10 @@ def test_trade_query_all_countries():
             country=None,
             hs_codes=[
                 ResolvedHSCode(
-                    id=4,
-                    code="853710",
-                    description=("For a voltage not exceeding 1,000 V"),
-                    level=6,
+                    id=hs_code.id,
+                    code=hs_code.code,
+                    description=hs_code.description,
+                    level=hs_code.level,
                     confidence=0.95,
                     mapping_type="candidate",
                     source="Development seed data",

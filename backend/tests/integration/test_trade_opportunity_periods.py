@@ -21,9 +21,10 @@ class FakeTradeRepository:
     def find_supplier_countries(
         self,
         hs_code_id,
-        target_country_id=None,
-        period_start=None,
-        period_end=None,
+        target_country_id,
+        period_start,
+        period_end,
+        source_name=None,
     ):
         self.supplier_calls.append(
             {
@@ -31,10 +32,38 @@ class FakeTradeRepository:
                 "target_country_id": target_country_id,
                 "period_start": period_start,
                 "period_end": period_end,
+                "source_name": source_name,
             }
         )
 
         return [(4, 100.0)]
+
+    def find_trade_history(
+        self,
+        hs_code_id,
+        trade_flow,
+        country_id,
+        country_role,
+        period_start=None,
+        period_end=None,
+        source_name=None,
+    ):
+        self.history_calls.append(
+            {
+                "hs_code_id": hs_code_id,
+                "trade_flow": trade_flow,
+                "country_id": country_id,
+                "country_role": country_role,
+                "period_start": period_start,
+                "period_end": period_end,
+                "source_name": source_name,
+            }
+        )
+
+        return [
+            (2024, 50.0),
+            (2025, 100.0),
+        ]
 
     def find_trade_history_pair(
         self,
@@ -44,6 +73,7 @@ class FakeTradeRepository:
         partner_country_id,
         period_start=None,
         period_end=None,
+        source_name=None,
     ):
         self.history_calls.append(
             {
@@ -53,6 +83,7 @@ class FakeTradeRepository:
                 "partner_country_id": partner_country_id,
                 "period_start": period_start,
                 "period_end": period_end,
+                "source_name": source_name,
             }
         )
 

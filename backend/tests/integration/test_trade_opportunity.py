@@ -13,6 +13,7 @@ from app.schemas.intelligence import (
     TradeQuery,
 )
 from app.services.trade_opportunity import TradeOpportunityService
+from app.repositories.hs_code import HSCodeRepository
 
 
 def test_supplier_search_india():
@@ -21,7 +22,9 @@ def test_supplier_search_india():
     try:
         trade_repository = TradeDataRepository(db)
         country_repository = CountryRepository(db)
-
+        hs_repository = HSCodeRepository(db)
+        hs_code = hs_repository.get_by_code("853710")
+        assert hs_code is not None
         service = TradeOpportunityService(
             trade_repository=trade_repository,
             country_repository=country_repository,
@@ -46,10 +49,10 @@ def test_supplier_search_india():
             ),
             hs_codes=[
                 ResolvedHSCode(
-                    id=4,
-                    code="853710",
-                    description=("For a voltage not exceeding 1,000 V"),
-                    level=6,
+                    id=hs_code.id,
+                    code=hs_code.code,
+                    description=hs_code.description,
+                    level=hs_code.level,
                     confidence=0.95,
                     mapping_type="candidate",
                     source="Development seed data",

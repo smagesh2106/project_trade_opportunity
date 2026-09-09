@@ -21,7 +21,6 @@ def test_hs_resolver():
 
         hs_code = result[0]
 
-        assert hs_code.id == 4
         assert hs_code.code == "853710"
         assert hs_code.level == 6
         assert hs_code.description == "For a voltage not exceeding 1,000 V"
