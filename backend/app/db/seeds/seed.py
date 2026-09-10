@@ -273,6 +273,36 @@ def seed_hs_codes(db, hs_version):
             "parent_code": "8504",
         },
         # ==================================================
+        # 85.32 - Electrical capacitors
+        # ==================================================
+        {
+            "code": "8532",
+            "description": (
+                "Electrical capacitors, fixed, variable or adjustable "
+                "(pre-set)."
+            ),
+            "level": 4,
+            "parent_code": "85",
+        },
+        {
+            "code": "85321",
+            "description": (
+                "Fixed capacitors designed for use in 50/60 Hz circuits."
+            ),
+            "level": 5,
+            "parent_code": "8532",
+        },
+        {
+            "code": "853210",
+            "description": (
+                "Fixed capacitors designed for use in 50/60 Hz circuits "
+                "and having a reactive power handling capacity of not "
+                "less than 0.5 kvar (power capacitors)."
+            ),
+            "level": 6,
+            "parent_code": "85321",
+        },
+        # ==================================================
         # 85.35 - HV switching / protecting equipment
         # ==================================================
         {
@@ -601,15 +631,54 @@ def seed_products(db, hs_codes):
             "category": "Control & Protection",
             "aliases": [
                 "electrical panels",
+                "electrical panel",
                 "control panels",
+                "control panel",
                 "electrical control panels",
+                "electrical control panel",
                 "distribution panels",
+                "distribution panel",
             ],
             "hs_mappings": [
                 {
                     "code": "853710",
                     "mapping_type": "candidate",
                     "confidence": 0.95,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+            ],
+        },
+        {
+            "name": "Circuit Breakers",
+            "description": (
+                "Automatic circuit breakers for low-, medium- and "
+                "high-voltage electrical circuits."
+            ),
+            "category": "Control & Protection",
+            "aliases": [
+                "circuit breakers",
+                "circuit breaker",
+                "automatic circuit breakers",
+                "automatic circuit breaker",
+            ],
+            "hs_mappings": [
+                {
+                    "code": "853620",
+                    "mapping_type": "candidate",
+                    "confidence": 0.90,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+                {
+                    "code": "853521",
+                    "mapping_type": "candidate",
+                    "confidence": 0.80,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+                {
+                    "code": "853529",
+                    "mapping_type": "candidate",
+                    "confidence": 0.75,
+                    "source": "WCO HS Nomenclature 2022",
                 },
             ],
         },
@@ -626,8 +695,24 @@ def seed_products(db, hs_codes):
                 "high voltage transformers",
                 "high voltage power transformers",
                 "power transformers",
+                "power transformer",
+                "transformers",
+                "transformer",
             ],
-            "hs_mappings": [],
+            "hs_mappings": [
+                {
+                    "code": "850423",
+                    "mapping_type": "candidate",
+                    "confidence": 0.80,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+                {
+                    "code": "850434",
+                    "mapping_type": "candidate",
+                    "confidence": 0.85,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+            ],
         },
         {
             "name": "MV Power Transformers",
@@ -659,6 +744,34 @@ def seed_products(db, hs_codes):
             "hs_mappings": [],
         },
         {
+            "name": "Switchgear",
+            "description": (
+                "Switchgear assemblies for electrical control and "
+                "distribution at low, medium or high voltage."
+            ),
+            "category": "Switchgear",
+            "aliases": [
+                "switchgear",
+                "electrical switchgear",
+                "switchgear assemblies",
+                "switchgear assembly",
+            ],
+            "hs_mappings": [
+                {
+                    "code": "853710",
+                    "mapping_type": "candidate",
+                    "confidence": 0.90,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+                {
+                    "code": "853720",
+                    "mapping_type": "candidate",
+                    "confidence": 0.85,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+            ],
+        },
+        {
             "name": "LV Switchgear",
             "description": (
                 "Low-voltage switchgear and associated equipment "
@@ -671,6 +784,62 @@ def seed_products(db, hs_codes):
                 "low-voltage switchgear",
             ],
             "hs_mappings": [],
+        },
+        {
+            "name": "Isolators / Disconnectors",
+            "description": (
+                "Electrical isolating and disconnecting switches for "
+                "low-, medium- and high-voltage circuits."
+            ),
+            "category": "Control & Protection",
+            "aliases": [
+                "isolators",
+                "isolator",
+                "electrical isolators",
+                "disconnectors",
+                "disconnector",
+                "isolating switches",
+                "isolating switch",
+                "disconnector switches",
+            ],
+            "hs_mappings": [
+                {
+                    "code": "853530",
+                    "mapping_type": "candidate",
+                    "confidence": 0.90,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+                {
+                    "code": "853650",
+                    "mapping_type": "candidate",
+                    "confidence": 0.70,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+            ],
+        },
+        {
+            "name": "Capacitor Banks",
+            "description": (
+                "Power capacitor banks used for power-factor correction "
+                "and reactive power compensation."
+            ),
+            "category": "Power Quality",
+            "aliases": [
+                "capacitor banks",
+                "capacitor bank",
+                "power capacitor banks",
+                "power capacitor bank",
+                "power factor correction capacitor banks",
+                "power factor correction capacitor bank",
+            ],
+            "hs_mappings": [
+                {
+                    "code": "853210",
+                    "mapping_type": "candidate",
+                    "confidence": 0.85,
+                    "source": "WCO HS Nomenclature 2022",
+                },
+            ],
         },
         {
             "name": "MV Switchgear",
@@ -896,8 +1065,18 @@ def seed_products(db, hs_codes):
                         hs_code_id=hs_code.id,
                         mapping_type=mapping_data["mapping_type"],
                         confidence=mapping_data["confidence"],
-                        source="Development seed data",
+                        source=mapping_data.get(
+                            "source",
+                            "Development seed data",
+                        ),
                     )
+                )
+            else:
+                existing_mapping.mapping_type = mapping_data["mapping_type"]
+                existing_mapping.confidence = mapping_data["confidence"]
+                existing_mapping.source = mapping_data.get(
+                    "source",
+                    "Development seed data",
                 )
 
         db.flush()

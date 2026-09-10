@@ -12,7 +12,15 @@ class HSResolver:
 
         resolved_codes: list[ResolvedHSCode] = []
 
-        for mapping in product.hs_mappings:
+        mappings = sorted(
+            product.hs_mappings,
+            key=lambda mapping: (
+                -float(mapping.confidence or 0.0),
+                mapping.hs_code.code if mapping.hs_code is not None else "",
+            ),
+        )
+
+        for mapping in mappings:
             hs_code = mapping.hs_code
 
             if hs_code is None:

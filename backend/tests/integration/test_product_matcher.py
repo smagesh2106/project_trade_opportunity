@@ -44,6 +44,33 @@ def test_product_matcher_unknown_product():
         db.close()
 
 
+def test_product_matcher_demo_aliases():
+    db = SessionLocal()
+
+    expected_products = {
+        "control panel": "Electrical Control Panels",
+        "automatic circuit breaker": "Circuit Breakers",
+        "power transformer": "HV Power Transformers",
+        "electrical switchgear": "Switchgear",
+        "disconnector": "Isolators / Disconnectors",
+        "power capacitor bank": "Capacitor Banks",
+    }
+
+    try:
+        matcher = ProductMatcher(ProductRepository(db))
+
+        for alias, product_name in expected_products.items():
+            result = matcher.match(alias)
+
+            assert result is not None, f"Product alias did not resolve: {alias}"
+            assert result.product.name == product_name
+            assert result.match_type == "exact_alias"
+
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     test_product_matcher_exact_alias()
     test_product_matcher_unknown_product()
+    test_product_matcher_demo_aliases()
