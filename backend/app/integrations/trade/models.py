@@ -44,13 +44,18 @@ class TradeDataRecord:
 
     @property
     def is_country_level_aggregate(self) -> bool:
-        """Return True only for canonical country-to-country totals.
+        """Return True for canonical country-to-country trade totals.
 
-        A canonical country-level aggregate must have:
-        - is_aggregate=True
-        - a real positive partner code
-        - a three-letter alphabetic ISO3 country code
+        The Comtrade provider requests breakdownMode="classic", which
+        returns the classic trade-total dimensional view.
+
+        A canonical country-level record must therefore have:
+        - a real positive partner country code
+        - a three-letter alphabetic ISO3 partner code
         - partner2 representing World (normally code 0)
+
+        Do not require the provider's isAggregate flag. UN Comtrade may
+        return valid bilateral classic-mode records with isAggregate=False.
 
         Comtrade aggregate/area identifiers such as S19 are deliberately
         excluded because they are not ISO alpha-3 country codes.
@@ -58,8 +63,7 @@ class TradeDataRecord:
         partner_iso3 = (self.partner_iso3 or "").strip().upper()
 
         return (
-            self.is_aggregate
-            and self.partner_code > 0
+            self.partner_code > 0
             and len(partner_iso3) == 3
             and partner_iso3.isalpha()
             and self.partner2_code in {0, None}
