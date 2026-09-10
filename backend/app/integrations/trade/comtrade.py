@@ -88,7 +88,7 @@ class ComtradeProvider(TradeDataProvider):
         flow_code: str,
         cmd_codes: list[str],
         partner_codes: list[int],
-        partner_batch_size: int = 10,
+        partner_batch_size: int = 50,
         max_records: int = 500,
     ) -> list[TradeDataRecord]:
         """Fetch partner-country records in explicit, rate-limited batches.
@@ -112,11 +112,7 @@ class ComtradeProvider(TradeDataProvider):
             raise ValueError("partner_batch_size must be between 1 and 50.")
 
         normalized_codes = sorted(
-            {
-                int(code)
-                for code in partner_codes
-                if int(code) > 0
-            }
+            {int(code) for code in partner_codes if int(code) > 0}
         )
 
         if not normalized_codes:
@@ -128,7 +124,7 @@ class ComtradeProvider(TradeDataProvider):
         seen: set[str] = set()
 
         batches = [
-            normalized_codes[index:index + partner_batch_size]
+            normalized_codes[index : index + partner_batch_size]
             for index in range(0, len(normalized_codes), partner_batch_size)
         ]
 
@@ -209,11 +205,7 @@ class ComtradeProvider(TradeDataProvider):
         breakdown_mode: str | None,
         max_records: int,
     ) -> list[TradeDataRecord]:
-        base_url = (
-            self.AUTH_BASE_URL
-            if self.subscription_key
-            else self.PUBLIC_BASE_URL
-        )
+        base_url = self.AUTH_BASE_URL if self.subscription_key else self.PUBLIC_BASE_URL
 
         params = {
             "reporterCode": str(reporter_code),
@@ -227,9 +219,7 @@ class ComtradeProvider(TradeDataProvider):
 
         if partner_code is not None:
             if isinstance(partner_code, list):
-                params["partnerCode"] = ",".join(
-                    str(code) for code in partner_code
-                )
+                params["partnerCode"] = ",".join(str(code) for code in partner_code)
             else:
                 params["partnerCode"] = str(partner_code)
 
@@ -254,9 +244,7 @@ class ComtradeProvider(TradeDataProvider):
             return []
 
         if not isinstance(raw_records, list):
-            raise ComtradeAPIError(
-                "UN Comtrade field 'data' is not a list."
-            )
+            raise ComtradeAPIError("UN Comtrade field 'data' is not a list.")
 
         records: list[TradeDataRecord] = []
 
@@ -306,9 +294,7 @@ class ComtradeProvider(TradeDataProvider):
 
                 error = payload.get("error")
                 if error:
-                    raise ComtradeAPIError(
-                        f"UN Comtrade API error: {error}"
-                    )
+                    raise ComtradeAPIError(f"UN Comtrade API error: {error}")
 
                 return payload
 
@@ -325,8 +311,7 @@ class ComtradeProvider(TradeDataProvider):
                         pass
 
                     raise ComtradeAPIError(
-                        f"UN Comtrade HTTP {exc.code}: "
-                        f"{body or exc.reason}"
+                        f"UN Comtrade HTTP {exc.code}: " f"{body or exc.reason}"
                     ) from exc
 
                 if attempt >= self.MAX_429_RETRIES:
@@ -351,7 +336,7 @@ class ComtradeProvider(TradeDataProvider):
                 try:
                     delay = float(retry_after)
                 except (TypeError, ValueError):
-                    delay = self.DEFAULT_RETRY_DELAY_SECONDS * (2 ** attempt)
+                    delay = self.DEFAULT_RETRY_DELAY_SECONDS * (2**attempt)
 
                 time.sleep(max(delay, 1.0))
                 attempt += 1
@@ -362,9 +347,7 @@ class ComtradeProvider(TradeDataProvider):
                 ) from exc
 
             except TimeoutError as exc:
-                raise ComtradeAPIError(
-                    "UN Comtrade request timed out."
-                ) from exc
+                raise ComtradeAPIError("UN Comtrade request timed out.") from exc
 
     def _parse_record(
         self,
@@ -379,36 +362,17 @@ class ComtradeProvider(TradeDataProvider):
         return TradeDataRecord(
             provider=self.provider_name,
             reporter_code=self._int(raw.get("reporterCode")),
-            reporter_iso3=self._text(
-                raw.get("reporterISO")
-            ),
-            reporter_name=self._text(
-                raw.get("reporterDesc")
-            ),
-            partner_code=self._int(
-                raw.get("partnerCode")
-            ),
-            partner_iso3=self._text(
-                raw.get("partnerISO")
-            ),
-            partner_name=self._text(
-                raw.get("partnerDesc")
-            ),
+            reporter_iso3=self._text(raw.get("reporterISO")),
+            reporter_name=self._text(raw.get("reporterDesc")),
+            partner_code=self._int(raw.get("partnerCode")),
+            partner_iso3=self._text(raw.get("partnerISO")),
+            partner_name=self._text(raw.get("partnerDesc")),
             hs_code=hs_code,
-            hs_description=self._text(
-                raw.get("cmdDesc")
-                or raw.get("cmdDescE")
-            ),
+            hs_description=self._text(raw.get("cmdDesc") or raw.get("cmdDescE")),
             period_start=period,
             period_end=self._period_end(period),
-            period_type=(
-                "annual"
-                if len(str(raw.get("period"))) == 4
-                else "monthly"
-            ),
-            trade_flow=self._normalize_trade_flow(
-                raw.get("flowCode")
-            ),
+            period_type=("annual" if len(str(raw.get("period"))) == 4 else "monthly"),
+            trade_flow=self._normalize_trade_flow(raw.get("flowCode")),
             trade_value_usd=self._float(
                 raw.get("primaryValue")
                 if raw.get("primaryValue") is not None
@@ -416,30 +380,15 @@ class ComtradeProvider(TradeDataProvider):
             ),
             trade_value_currency="USD",
             quantity=self._float(
-                raw.get("netWgt")
-                if raw.get("netWgt") is not None
-                else raw.get("qty")
+                raw.get("netWgt") if raw.get("netWgt") is not None else raw.get("qty")
             ),
-            quantity_unit=self._text(
-                raw.get("qtyUnitAbbr")
-                or raw.get("qtyUnitCode")
-            ),
+            quantity_unit=self._text(raw.get("qtyUnitAbbr") or raw.get("qtyUnitCode")),
             source_record_id=self._build_source_record_id(raw),
-            data_version=self._text(
-                raw.get("classificationCode")
-            ),
-            is_aggregate=bool(
-                raw.get("isAggregate")
-            ),
-            partner2_code=self._optional_int(
-                raw.get("partner2Code")
-            ),
-            partner2_iso3=self._text(
-                raw.get("partner2ISO")
-            ),
-            partner2_name=self._text(
-                raw.get("partner2Desc")
-            ),
+            data_version=self._text(raw.get("classificationCode")),
+            is_aggregate=bool(raw.get("isAggregate")),
+            partner2_code=self._optional_int(raw.get("partner2Code")),
+            partner2_iso3=self._text(raw.get("partner2ISO")),
+            partner2_name=self._text(raw.get("partner2Desc")),
         )
 
     @staticmethod
@@ -469,35 +418,21 @@ class ComtradeProvider(TradeDataProvider):
         monthly: bool = False,
     ) -> None:
         if reporter_code <= 0:
-            raise ValueError(
-                "reporter_code must be a positive M49 code."
-            )
+            raise ValueError("reporter_code must be a positive M49 code.")
 
         period_text = str(period).strip()
 
         if monthly:
-            if (
-                len(period_text) != 6
-                or not period_text.isdigit()
-            ):
-                raise ValueError(
-                    "Monthly period must use YYYYMM."
-                )
+            if len(period_text) != 6 or not period_text.isdigit():
+                raise ValueError("Monthly period must use YYYYMM.")
 
             month = int(period_text[4:6])
 
             if not 1 <= month <= 12:
-                raise ValueError(
-                    "Monthly period contains an invalid month."
-                )
+                raise ValueError("Monthly period contains an invalid month.")
         else:
-            if (
-                len(period_text) != 4
-                or not period_text.isdigit()
-            ):
-                raise ValueError(
-                    "Annual period must use YYYY."
-                )
+            if len(period_text) != 4 or not period_text.isdigit():
+                raise ValueError("Annual period must use YYYY.")
 
         if flow_code not in {
             "M",
@@ -507,38 +442,23 @@ class ComtradeProvider(TradeDataProvider):
             "DX",
             "FM",
         }:
-            raise ValueError(
-                "flow_code must be one of "
-                "M, X, RX, RM, DX, FM."
-            )
+            raise ValueError("flow_code must be one of " "M, X, RX, RM, DX, FM.")
 
         if not cmd_codes:
-            raise ValueError(
-                "At least one HS command code is required."
-            )
+            raise ValueError("At least one HS command code is required.")
 
         if len(cmd_codes) > 20:
-            raise ValueError(
-                "At most 20 commodity codes may be requested."
-            )
+            raise ValueError("At most 20 commodity codes may be requested.")
 
-        if any(
-            not str(code).strip()
-            for code in cmd_codes
-        ):
-            raise ValueError(
-                "HS command codes cannot be blank."
-            )
+        if any(not str(code).strip() for code in cmd_codes):
+            raise ValueError("HS command codes cannot be blank.")
 
         if max_records < 1:
-            raise ValueError(
-                "max_records must be at least 1."
-            )
+            raise ValueError("max_records must be at least 1.")
 
         if not 1 <= max_records <= 500:
             raise ValueError(
-                "Public-preview requests currently use "
-                "a maximum of 500 records."
+                "Public-preview requests currently use " "a maximum of 500 records."
             )
 
     @staticmethod
