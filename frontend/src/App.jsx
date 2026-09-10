@@ -4,10 +4,12 @@ import logo from "./assets/Logo.svg";
 import tradeHero from "./assets/trade-hero.png";
 
 const sampleQueries = [
-  "Which countries export electrical panels to India?",
   "Who buys electrical panels from India?",
-  "Compare Germany vs UAE for HS 853710",
-  "Best export opportunities for India in control panels",
+  "Which countries supply circuit breakers to India?",
+  "Compare Germany vs UAE as suppliers of electrical panels to India",
+  "Which markets import switchgear from India?",
+  "Which countries supply isolators to India?",
+  "Which countries import capacitor banks from India?",
 ];
 
 const emptyOpportunityRows = Array.from({ length: 5 }, (_, index) => ({

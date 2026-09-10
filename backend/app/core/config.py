@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
 
     comtrade_subscription_key: str | None = None
-    trade_data_source: str = "Development Trade Data"
+    trade_data_source: str = "UN Comtrade"
     # ------------------------------------------------------------------
     # PostgreSQL
     # ------------------------------------------------------------------
