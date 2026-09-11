@@ -375,9 +375,13 @@ function App() {
                   />
                 </label>
               </div>
-
+              <div className="coverage-note">
+                <strong>Current data coverage:</strong> India, China, Brazil, United Kingdom,
+                France, Germany, United States
+                <br />
+                <strong>Limited coverage:</strong> United Arab Emirates (2023 only)
+              </div>
               <span className="example-label">Try these example queries:</span>
-
               <div className="example-queries">
                 {sampleQueries.map((sample) => (
                   <button type="button" key={sample} onClick={() => setQuery(sample)}>

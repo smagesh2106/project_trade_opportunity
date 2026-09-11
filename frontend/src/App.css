@@ -935,6 +935,24 @@ td {
   font-size: 0.55rem;
 }
 
+.coverage-note {
+  margin-top: 6px;
+  margin-bottom: 8px;
+
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-weight: 400;
+
+  color: rgba(220, 235, 248, 0.78);
+
+  letter-spacing: 0.01em;
+}
+
+.coverage-note strong {
+  font-weight: 600;
+  color: rgba(235, 245, 255, 0.95);
+}
+
 /* Responsive */
 
 @media (max-width: 1350px) {
