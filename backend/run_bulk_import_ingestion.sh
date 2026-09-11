@@ -2,10 +2,10 @@
 set -euo pipefail
 
 REPORTERS=(
-  "156:China"
+  "156:China"    
   "076:Brazil"
   "826:United Kingdom"
-  "250:France"
+  "251:France"
   "276:Germany"
   "784:United Arab Emirates"
   "842:United States"
