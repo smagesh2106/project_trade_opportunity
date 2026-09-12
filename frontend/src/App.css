@@ -193,6 +193,19 @@ button {
   background: linear-gradient(135deg, #2f9aff, #1973d5);
   font-size: 0.73rem;
   font-weight: 800;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.search-box button:disabled {
+  background: #66727d;
+  color: #d8e0e6;
+  opacity: 0.85;
+  cursor: wait;
+  box-shadow: none;
 }
 
 .date-toolbar {
@@ -945,6 +958,18 @@ td {
 
   color: rgba(220, 235, 248, 0.78);
 
+  letter-spacing: 0.01em;
+}
+
+.example-label {
+  display: block;
+  margin-top: 8px;
+  margin-bottom: 5px;
+
+  font-size: 0.78rem;
+  font-weight: 600;
+
+  color: #4db8ff;
   letter-spacing: 0.01em;
 }
 
